@@ -13,7 +13,7 @@ from util.utils import make_weights_for_balanced_classes, get_val_data, separate
 
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-import os
+import os, sys
 
 
 if __name__ == '__main__':
@@ -130,6 +130,7 @@ if __name__ == '__main__':
     print(OPTIMIZER)
     print("Optimizer Generated")
     print("=" * 60)
+    sys.stdout.flush() 
 
     # optionally resume from a checkpoint
     if BACKBONE_RESUME_ROOT and HEAD_RESUME_ROOT:
@@ -142,7 +143,7 @@ if __name__ == '__main__':
         else:
             print("No Checkpoint Found at '{}' and '{}'. Please Have a Check or Continue to Train from Scratch".format(BACKBONE_RESUME_ROOT, HEAD_RESUME_ROOT))
         print("=" * 60)
-
+        sys.stdout.flush() 
     if MULTI_GPU:
         # multi-GPU setting
         BACKBONE = nn.DataParallel(BACKBONE, device_ids = GPU_ID)
@@ -207,6 +208,7 @@ if __name__ == '__main__':
                       'Training Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                     epoch + 1, NUM_EPOCH, batch + 1, len(train_loader) * NUM_EPOCH, loss = losses, top1 = top1, top5 = top5))
                 print("=" * 60)
+                sys.stdout.flush()
 
             batch += 1 # batch index
 
@@ -222,6 +224,7 @@ if __name__ == '__main__':
               'Training Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
             epoch + 1, NUM_EPOCH, loss = losses, top1 = top1, top5 = top5))
         print("=" * 60)
+        sys.stdout.flush() 
 
         # perform validation & save checkpoints per epoch
         # validation statistics per epoch (buffer for visualization)
@@ -243,6 +246,7 @@ if __name__ == '__main__':
         buffer_val(writer, "VGGFace2_FP", accuracy_vgg2_fp, best_threshold_vgg2_fp, roc_curve_vgg2_fp, epoch + 1)
         print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FF Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}, CALFW Acc: {}, CPLFW Acc: {}, VGG2_FP Acc: {}".format(epoch + 1, NUM_EPOCH, accuracy_lfw, accuracy_cfp_ff, accuracy_cfp_fp, accuracy_agedb, accuracy_calfw, accuracy_cplfw, accuracy_vgg2_fp))
         print("=" * 60)
+        sys.stdout.flush() 
 
         # save checkpoints per epoch
         if MULTI_GPU:
