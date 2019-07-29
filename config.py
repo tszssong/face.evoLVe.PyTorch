@@ -4,7 +4,7 @@ configurations = {
     1: dict(
         SEED = 1337, # random seed for reproduce results
 
-        DATA_ROOT = '/data03/zhengmeisong/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
+        DATA_ROOT = '/home/zhengmeisong/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
         MODEL_ROOT = '../py-model', # the root to buffer your checkpoints
         LOG_ROOT = '../py-log', # the root to log your train/val status
         BACKBONE_RESUME_ROOT = './', # the root to resume training from a saved checkpoint
