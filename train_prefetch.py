@@ -12,8 +12,10 @@ from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_S
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.focal import FocalLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
+
 from tensorboardX import SummaryWriter
-from tqdm import tqdm
+from datasets.data_prefetcher import data_prefetcher
+from datasets.folder_img_iter import ImageFolder
 
 if __name__ == '__main__':
 
@@ -59,7 +61,7 @@ if __name__ == '__main__':
 
     writer = SummaryWriter(LOG_ROOT) # writer for buffering intermedium results
 
-    train_transform = transforms.Compose([ 
+    train_transform = transforms.Compose([ # refer to https://pytorch.org/docs/stable/torchvision/transforms.html for more build-in online data augmentation
         transforms.Resize([int(128 * INPUT_SIZE[0] / 112), int(128 * INPUT_SIZE[0] / 112)]), # smaller side resized
         transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
         transforms.RandomHorizontalFlip(),
@@ -68,7 +70,8 @@ if __name__ == '__main__':
                              std = RGB_STD),
     ])
 
-    dataset_train = datasets.ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    dataset_train = ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    #dataset_train = datasets.ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
     weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
@@ -165,7 +168,9 @@ if __name__ == '__main__':
     NUM_EPOCH_WARM_UP = NUM_EPOCH // 25  # use the first 1/25 epochs to warm up
     NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
     batch = 0  # batch index
+
     elasped = 0
+    #prefetcher = data_prefetcher(train_loader)
     for epoch in range(NUM_EPOCH): # start training process
         
         if epoch == STAGES[0]: # adjust LR after warm up
@@ -182,8 +187,8 @@ if __name__ == '__main__':
         top1   = AverageMeter()
         top5   = AverageMeter()
 
-        for inputs, labels in tqdm(iter(train_loader)):
-        #for inputs, labels in iter(train_loader):
+        inputs, labels = prefetcher.next()
+        while inputs is not None:
             start = time.time()
             if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
                 warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
@@ -215,6 +220,7 @@ if __name__ == '__main__':
                 sys.stdout.flush()
 
             batch += 1 # batch index
+            inputs, labels = prefetcher.next()
             end = time.time() - start
             elasped = elasped + end
 
