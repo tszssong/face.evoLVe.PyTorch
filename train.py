@@ -55,6 +55,7 @@ if __name__ == '__main__':
     print("Overall Configurations:")
     print(cfg)
     print("=" * 60)
+    sys.stdout.flush()
 
     writer = SummaryWriter(LOG_ROOT) # writer for buffering intermedium results
 
@@ -81,6 +82,7 @@ if __name__ == '__main__':
 
     NUM_CLASS = len(train_loader.dataset.classes)
     print("Number of Training Classes: {}".format(NUM_CLASS))
+    sys.stdout.flush()  
 
     lfw, cfp_ff, cfp_fp, agedb, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, agedb_issame, calfw_issame, cplfw_issame, vgg2_fp_issame = get_val_data(DATA_ROOT)
 
@@ -100,6 +102,7 @@ if __name__ == '__main__':
     print(BACKBONE)
     print("{} Backbone Generated".format(BACKBONE_NAME))
     print("=" * 60)
+    sys.stdout.flush()  
 
     HEAD_DICT = {'ArcFace': ArcFace(in_features = EMBEDDING_SIZE, out_features = NUM_CLASS, device_id = GPU_ID),
                  'CosFace': CosFace(in_features = EMBEDDING_SIZE, out_features = NUM_CLASS, device_id = GPU_ID),
@@ -110,6 +113,7 @@ if __name__ == '__main__':
     print(HEAD)
     print("{} Head Generated".format(HEAD_NAME))
     print("=" * 60)
+    sys.stdout.flush()  
 
     LOSS_DICT = {'Focal': FocalLoss(), 
                  'Softmax': nn.CrossEntropyLoss()}
@@ -118,6 +122,7 @@ if __name__ == '__main__':
     print(LOSS)
     print("{} Loss Generated".format(LOSS_NAME))
     print("=" * 60)
+    sys.stdout.flush()  
 
     if BACKBONE_NAME.find("IR") >= 0:
         backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
@@ -135,12 +140,9 @@ if __name__ == '__main__':
     # optionally resume from a checkpoint
     if BACKBONE_RESUME_ROOT and HEAD_RESUME_ROOT:
         print("=" * 60)
-        if os.path.isfile(BACKBONE_RESUME_ROOT):
+        if os.path.isfile(BACKBONE_RESUME_ROOT) and os.path.isfile(HEAD_RESUME_ROOT):
             print("Loading Backbone Checkpoint '{}'".format(BACKBONE_RESUME_ROOT))
             BACKBONE.load_state_dict(torch.load(BACKBONE_RESUME_ROOT))
-        else:
-            print("No Checkpoint Found at '{}' and '{}'. Please Have a Check or Continue to Train from Scratch".format(BACKBONE_RESUME_ROOT, HEAD_RESUME_ROOT))
-        if os.path.isfile(HEAD_RESUME_ROOT):
             print("Loading Head Checkpoint '{}'".format(HEAD_RESUME_ROOT))
             HEAD.load_state_dict(torch.load(HEAD_RESUME_ROOT))
         else:
