@@ -1,6 +1,8 @@
+import os, sys, time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.cuda
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
@@ -12,9 +14,7 @@ from loss.focal import FocalLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 
 from tensorboardX import SummaryWriter
-from tqdm import tqdm
-import os, sys
-
+from datasets.data_prefetcher import data_prefetcher
 
 if __name__ == '__main__':
 
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     GPU_ID = cfg['GPU_ID'] # specify your GPU ids
     PIN_MEMORY = cfg['PIN_MEMORY']
     NUM_WORKERS = cfg['NUM_WORKERS']
+    print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) )
     print("=" * 60)
     print("Overall Configurations:")
     print(cfg)
@@ -159,12 +160,15 @@ if __name__ == '__main__':
 
 
     #======= train & validation & save checkpoint =======#
-    DISP_FREQ = len(train_loader) // 100 # frequency to display training loss & acc
+    #DISP_FREQ = len(train_loader) // 100 # frequency to display training loss & acc
+    DISP_FREQ = 100                       # frequency to display training loss & acc
 
     NUM_EPOCH_WARM_UP = NUM_EPOCH // 25  # use the first 1/25 epochs to warm up
     NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
     batch = 0  # batch index
 
+    elasped = 0
+    prefetcher = data_prefetcher(train_loader)
     for epoch in range(NUM_EPOCH): # start training process
         
         if epoch == STAGES[0]: # adjust LR for each training stage after warm up, you can also choose to adjust LR manually (with slight modification) once plaueau observed
@@ -181,8 +185,10 @@ if __name__ == '__main__':
         top1 = AverageMeter()
         top5 = AverageMeter()
 
-        for inputs, labels in tqdm(iter(train_loader)):
-
+        inputs, labels = prefetcher.next()
+        while inputs is not None:
+        #for inputs, labels in iter(train_loader):
+            start = time.time()
             if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP): # adjust LR for each training batch during warm up
                 warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
 
@@ -206,7 +212,8 @@ if __name__ == '__main__':
             
             # dispaly training loss & acc every DISP_FREQ
             if ((batch + 1) % DISP_FREQ == 0) and batch != 0:
-                print("=" * 60)
+                print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(elasped/DISP_FREQ) )
+                elasped = 0
                 print('Epoch {}/{} Batch {}/{}\t'
                       'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Training Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
@@ -216,6 +223,9 @@ if __name__ == '__main__':
                 sys.stdout.flush()
 
             batch += 1 # batch index
+            inputs, labels = prefetcher.next()
+            end = time.time() - start
+            elasped = elasped + end
 
         # training statistics per epoch (buffer for visualization)
         epoch_loss = losses.avg
