@@ -5,7 +5,7 @@ configurations = {
     1: dict(
         SEED = 1337, # random seed for reproduce results
 
-        DATA_ROOT = '/data3/zhengmeisong/data/glintv2_ms1m_img', # the parent root where your train/val/test data are stored
+        DATA_ROOT = '/home/ubuntu/zms/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
         MODEL_ROOT = '../py-model', # the root to buffer your checkpoints
         LOG_ROOT = '../py-log', # the root to log your train/val status
         BACKBONE_RESUME_ROOT = '../py-model/backbone_ir50_ms1m_epoch120.pth', # the root to resume training from a saved checkpoint
@@ -28,9 +28,9 @@ configurations = {
         STAGES = [5, 10, 15, 25], # epoch stages to decay learning rate
 
         DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-        MULTI_GPU = True, # flag to use multiple GPUs; if you choose to train with single GPU, you should first run "export CUDA_VISILE_DEVICES=device_id" to specify the GPU card you want to use
-        GPU_ID = [0, 1, 2, 3], # specify your GPU ids
+        MULTI_GPU = False, # flag to use multiple GPUs; if you choose to train with single GPU, you should first run "export CUDA_VISILE_DEVICES=device_id" to specify the GPU card you want to use
+        GPU_ID = [0], # specify your GPU ids
         PIN_MEMORY = True,
-        NUM_WORKERS = 0,
+        NUM_WORKERS = 4,
 ),
 }
