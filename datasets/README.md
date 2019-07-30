@@ -5,8 +5,8 @@
   TODO  CentOS缺少libjpeg-turbo库，待解决  
   centOs参考这里：  
   
-    Download [libjpeg-turbo.repo](https://libjpeg-turbo.org/pmwiki/uploads/Downloads/libjpeg-turbo.repo) to /etc/yum.repos.d/
-    sudo yum install libjpeg-turbo-official
-    pip install -U git+git://github.com/lilohuang/PyTurboJPEG.git
+    Download [libjpeg-turbo.repo](https://libjpeg-turbo.org/pmwiki/uploads/Downloads/libjpeg-turbo.repo) to /etc/yum.repos.d/  
+    sudo yum install libjpeg-turbo-official  
+    pip install -U git+git://github.com/lilohuang/PyTurboJPEG.git  
 
 - triplet TODO
