@@ -4,13 +4,13 @@ configurations = {
     1: dict(
         SEED = 1337, # random seed for reproduce results
 
-        DATA_ROOT = '/home/zhengmeisong/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
+        DATA_ROOT = '/data03/zhengmeisong/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
         MODEL_ROOT = '../py-model', # the root to buffer your checkpoints
         LOG_ROOT = '../py-log', # the root to log your train/val status
         BACKBONE_RESUME_ROOT = './', # the root to resume training from a saved checkpoint
         HEAD_RESUME_ROOT = './', # the root to resume training from a saved checkpoint
 
-        BACKBONE_NAME = 'IR_50', # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
+        BACKBONE_NAME = 'ResNet_50', # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
         HEAD_NAME = 'ArcFace', # support:  ['Softmax', 'ArcFace', 'CosFace', 'SphereFace', 'Am_softmax']
         LOSS_NAME = 'Focal', # support: ['Focal', 'Softmax']
 
@@ -28,8 +28,8 @@ configurations = {
 
         DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         MULTI_GPU = True, # flag to use multiple GPUs; 
-        GPU_ID = [0, 1, 2, 3, 4, 5, 6, 7], # specify your GPU ids
+        GPU_ID = [0, 1, 2, 3], # specify your GPU ids
         PIN_MEMORY = True,
-        NUM_WORKERS = 30,
+        NUM_WORKERS = 16,
 ),
 }
