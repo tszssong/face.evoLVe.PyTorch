@@ -1,16 +1,29 @@
-from torchvision import VisionDataset
-from PIL import Image
-import os
+import os, sys, time
 import os.path
-import sys
+from PIL import Image
+import numpy as np
+import torch
+import torch.utils.data as data
+import torchvision
+from torchvision import transforms
+import cv2
+import jpeg4py as jpeg
+IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
+
+def pil_loader(path):
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
+def jpeg4py_loader(path):
+    with open(path, 'rb') as f:
+        img = jpeg.JPEG(f).decode()
+        return Image.fromarray(img)  #TODO: torchvison transpose use PIL img
 
 def has_file_allowed_extension(filename, extensions):
     return filename.lower().endswith(extensions)
 
-
 def is_image_file(filename):
     return has_file_allowed_extension(filename, IMG_EXTENSIONS)
-
 
 def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
     images = []
@@ -33,26 +46,26 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
 
     return images
 
+# def make_transform():
+#     return transform.Compose()
 
-class DatasetFolder(VisionDataset):
-
-    def __init__(self, root, loader, extensions=None, transform=None,
-                 target_transform=None, is_valid_file=None):
-        super(DatasetFolder, self).__init__(root, transform=transform,
-                                            target_transform=target_transform)
+class FolderImgData(data.Dataset):
+    def __init__(self, root, transform=None, target_transform=None):
+        super(FolderImgData, self).__init__()
+        self.root = root
+        self.transform = transform               # transform datas
+        self.target_transform = target_transform # transform targets
         classes, class_to_idx = self._find_classes(self.root)
-        samples = make_dataset(self.root, class_to_idx, extensions, is_valid_file)
+        samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
         if len(samples) == 0:
             raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
                                 "Supported extensions are: " + ",".join(extensions)))
-
-        self.loader = loader
-        self.extensions = extensions
 
         self.classes = classes
         self.class_to_idx = class_to_idx
         self.samples = samples
         self.targets = [s[1] for s in samples]
+        print("samples:", len(self.samples))
 
     def _find_classes(self, dir):
         if sys.version_info >= (3, 5):
@@ -66,7 +79,8 @@ class DatasetFolder(VisionDataset):
 
     def __getitem__(self, index):
         path, target = self.samples[index]
-        sample = self.loader(path)
+        # sample = pil_loader(path)               #pil load imgs
+        sample = jpeg4py_loader(path)
         if self.transform is not None:
             sample = self.transform(sample)
         if self.target_transform is not None:
@@ -78,40 +92,38 @@ class DatasetFolder(VisionDataset):
         return len(self.samples)
 
 
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
-
-
-def pil_loader(path):
-    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-    with open(path, 'rb') as f:
-        img = Image.open(f)
-        return img.convert('RGB')
-
-
-def accimage_loader(path):
-    import accimage
-    try:
-        return accimage.Image(path)
-    except IOError:
-        # Potentially a decoding problem, fall back to PIL.Image
-        return pil_loader(path)
-
-
-def default_loader(path):
-    from torchvision import get_image_backend
-    if get_image_backend() == 'accimage':
-        return accimage_loader(path)
-    else:
-        return pil_loader(path)
-
-
-class ImageFolder(DatasetFolder):
-
-    def __init__(self, root, transform=None, target_transform=None,
-                 loader=default_loader, is_valid_file=None):
-        super(ImageFolder, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                                          transform=transform,
-                                          target_transform=target_transform,
-                                          is_valid_file=is_valid_file)
-        self.imgs = self.samples
-
+if __name__=='__main__':
+    RESIZE_SCALE = [1.2, 1.0]
+    INPUT_SIZE   = [112, 112]       # support: [112, 112] and [224, 224]
+    RGB_MEAN     = [0.5, 0.5, 0.5]  # for normalize inputs to [-1, 1]
+    RGB_STD      = [0.5, 0.5, 0.5]
+    DATA_ROOT = '/home/ubuntu/zms/data/msceleb'
+    train_transform = transforms.Compose([ 
+        transforms.Resize([int(RESIZE_SCALE[0]*INPUT_SIZE[0]), int(RESIZE_SCALE[1]*INPUT_SIZE[0])]), # smaller side resized
+        transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),
+    ])
+    dataset_train = FolderImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    train_loader = torch.utils.data.DataLoader(
+        dataset_train, batch_size = 2, sampler = None, pin_memory = True,
+        num_workers = 4, drop_last = True
+    )
+    start = time.time()
+    for epoch in range(10):
+        print("epoch %d"%epoch)
+        for inputs, labels in iter(train_loader):
+            inputs = inputs.numpy()
+            labels = labels.numpy()
+            for b_idx in range(inputs.shape[0]):
+                im = inputs[b_idx]
+                label = labels[b_idx]
+                # im = im*127.5 + 127.5
+                # im = im.astype(np.uint8)
+                # im = np.transpose(im, (1,2,0))
+                # im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+                # print(b_idx, ":", im.shape, label)
+                # cv2.imshow("im decode:", im)
+                # cv2.waitKey(100)
+    print("10 epoch use time: %.2f s"%(time.time()-start))
