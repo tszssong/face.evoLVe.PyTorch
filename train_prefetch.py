@@ -15,7 +15,7 @@ from util.utils import make_weights_for_balanced_classes, get_val_data, separate
 
 from tensorboardX import SummaryWriter
 from datasets.data_prefetcher import data_prefetcher
-from datasets.folder_img_iter import ImageFolder
+from datasets.folder_img_iter import FolderImgData
 
 if __name__ == '__main__':
 
@@ -70,11 +70,11 @@ if __name__ == '__main__':
                              std = RGB_STD),
     ])
 
-    dataset_train = ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    dataset_train = FolderImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
     #dataset_train = datasets.ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
-    weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
+    weights = make_weights_for_balanced_classes(dataset_train.samples, len(dataset_train.classes))
     weights = torch.DoubleTensor(weights)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     batch = 0  # batch index
 
     elasped = 0
-    #prefetcher = data_prefetcher(train_loader)
+    prefetcher = data_prefetcher(train_loader)
     for epoch in range(NUM_EPOCH): # start training process
         
         if epoch == STAGES[0]: # adjust LR after warm up
