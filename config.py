@@ -6,7 +6,7 @@ configurations = {
     1: dict(
         SEED = 1337, # random seed for reproduce results
 
-        DATA_ROOT = '/home/ubuntu/zms/data/ms1m_emore_img', # the parent root where your train/val/test data are stored
+        DATA_ROOT = '/home/ubuntu/zms/data/msceleb', # the parent root where your train/val/test data are stored
         MODEL_ROOT = '../py-model', # the root to buffer your checkpoints
         LOG_ROOT = '../py-log', # the root to log your train/val status
         BACKBONE_RESUME_ROOT = '../py-model/backbone_ir50_ms1m_epoch120.pth', # the root to resume training from a saved checkpoint
@@ -20,7 +20,7 @@ configurations = {
         RGB_MEAN = [0.5, 0.5, 0.5], # for normalize inputs to [-1, 1]
         RGB_STD = [0.5, 0.5, 0.5],
         EMBEDDING_SIZE = 512, # feature dimension
-        BATCH_SIZE = 512,
+        BATCH_SIZE = 16,
         DROP_LAST = True, # whether drop the last batch to ensure consistent batch_norm statistics
         LR = 0.1, # initial LR
         NUM_EPOCH = 125, # total epoch number (use the firt 1/25 epochs to warm up)
