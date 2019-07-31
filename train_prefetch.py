@@ -71,7 +71,7 @@ if __name__ == '__main__':
     ])
 
     dataset_train = FolderImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
-    #dataset_train = datasets.ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+#    dataset_train = datasets.ImageFolder(os.path.join(DATA_ROOT, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
     weights = make_weights_for_balanced_classes(dataset_train.samples, len(dataset_train.classes))
@@ -170,7 +170,6 @@ if __name__ == '__main__':
     batch = 0  # batch index
 
     elasped = 0
-    prefetcher = data_prefetcher(train_loader)
     for epoch in range(NUM_EPOCH): # start training process
         
         if epoch == STAGES[0]: # adjust LR after warm up
@@ -187,6 +186,7 @@ if __name__ == '__main__':
         top1   = AverageMeter()
         top5   = AverageMeter()
 
+        prefetcher = data_prefetcher(train_loader)
         inputs, labels = prefetcher.next()
         while inputs is not None:
             start = time.time()
