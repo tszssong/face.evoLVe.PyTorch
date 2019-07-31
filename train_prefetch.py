@@ -79,7 +79,7 @@ if __name__ == '__main__':
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
 
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = BATCH_SIZE, sampler = sampler, pin_memory = PIN_MEMORY,
+        dataset_train, batch_size = BATCH_SIZE,  sampler = sampler, pin_memory = PIN_MEMORY,
         num_workers = NUM_WORKERS, drop_last = DROP_LAST
     )
 
@@ -170,7 +170,6 @@ if __name__ == '__main__':
     batch = 0  # batch index
 
     elasped = 0
-    prefetcher = data_prefetcher(train_loader)
     for epoch in range(NUM_EPOCH): # start training process
         
         if epoch == STAGES[0]: # adjust LR after warm up
@@ -187,7 +186,9 @@ if __name__ == '__main__':
         top1   = AverageMeter()
         top5   = AverageMeter()
 
+        prefetcher = data_prefetcher(train_loader)
         inputs, labels = prefetcher.next()
+        print("inited, ", type(inputs))
         while inputs is not None:
             start = time.time()
             if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
