@@ -43,11 +43,8 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
                 if is_valid_file(path):
                     item = (path, class_to_idx[target])
                     images.append(item)
-
     return images
 
-# def make_transform():
-#     return transform.Compose()
 
 class FolderImgData(data.Dataset):
     def __init__(self, root, transform=None, target_transform=None):
@@ -85,7 +82,6 @@ class FolderImgData(data.Dataset):
             sample = self.transform(sample)
         if self.target_transform is not None:
             target = self.target_transform(target)
-
         return sample, target
 
     def __len__(self):
@@ -98,6 +94,8 @@ if __name__=='__main__':
     RGB_MEAN     = [0.5, 0.5, 0.5]  # for normalize inputs to [-1, 1]
     RGB_STD      = [0.5, 0.5, 0.5]
     DATA_ROOT = '/home/ubuntu/zms/data/msceleb'
+    show_x = 6
+    show_y = 3
     train_transform = transforms.Compose([ 
         transforms.Resize([int(RESIZE_SCALE[0]*INPUT_SIZE[0]), int(RESIZE_SCALE[1]*INPUT_SIZE[0])]), # smaller side resized
         transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
@@ -111,6 +109,9 @@ if __name__=='__main__':
         num_workers = 4, drop_last = True
     )
     start = time.time()
+    show_sample_img = np.zeros((show_y*INPUT_SIZE[1], show_x*INPUT_SIZE[0], 3), dtype=np.uint8)
+    x=0
+    y=0
     for epoch in range(10):
         print("epoch %d"%epoch)
         for inputs, labels in iter(train_loader):
@@ -119,11 +120,22 @@ if __name__=='__main__':
             for b_idx in range(inputs.shape[0]):
                 im = inputs[b_idx]
                 label = labels[b_idx]
-                # im = im*127.5 + 127.5
-                # im = im.astype(np.uint8)
-                # im = np.transpose(im, (1,2,0))
-                # im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+                im = im*127.5 + 127.5
+                im = im.astype(np.uint8)
+                im = np.transpose(im, (1,2,0))
+                im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
                 # print(b_idx, ":", im.shape, label)
                 # cv2.imshow("im decode:", im)
                 # cv2.waitKey(100)
+                show_sample_img[y*INPUT_SIZE[1]:(y+1)*INPUT_SIZE[1], 
+                                x*INPUT_SIZE[0]:(x+1)*INPUT_SIZE[0],:] = im
+                x = x+1
+                if x==show_x:
+                    y = y+1
+                    x = 0
+                    if y==show_y:
+                        y = 0
+                        cv2.imshow("sample", show_sample_img)
+                        cv2.waitKey()
+
     print("10 epoch use time: %.2f s"%(time.time()-start))
