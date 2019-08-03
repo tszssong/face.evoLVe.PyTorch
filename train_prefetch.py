@@ -14,8 +14,8 @@ from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 
 from tensorboardX import SummaryWriter
-from datasets.data_prefetcher import data_prefetcher
-from datasets.folder_img_iter import FolderImgData
+from imgdata.data_prefetcher import data_prefetcher
+from imgdata.folder_img_iter import FolderImgData
 
 if __name__ == '__main__':
 

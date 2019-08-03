@@ -78,9 +78,10 @@ class TripletImgData(data.Dataset):
         path, target = self.samples[index]
         positive_idx = np.random.choice( np.where( np.array(self.targets)==target)[0] )
         #TODO except itself
-        positive_path,_ = self.samples[positive_idx]   
+        positive_path,pos_label = self.samples[positive_idx]   
         negative_idx = np.random.choice( np.where( np.array(self.targets)!=target)[0] )
-        negative_path,_ = self.samples[negative_idx]   
+        negative_path,neg_label = self.samples[negative_idx]   
+        # print("label:", target, pos_label, neg_label)
         # print("idx:", target, positive_idx, negative_idx)
         # print("pth:", path, positive_path, negative_path)
         img1 = pil_loader(path)
@@ -90,7 +91,7 @@ class TripletImgData(data.Dataset):
             img1 = self.transform(img1)
             img2 = self.transform(img2)
             img3 = self.transform(img3)
-        return (img1, img2, img3), []
+        return (img1, img2, img3), (target, pos_label, neg_label)
 
     def __len__(self):
         return len(self.samples)
@@ -113,8 +114,8 @@ if __name__=='__main__':
     ])
     dataset_train = TripletImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = show_x, shuffle=False, sampler = None, pin_memory = True,
-        num_workers = 4, drop_last = True
+        dataset_train, batch_size = show_x, shuffle=True, sampler = None,
+        pin_memory = True, num_workers = 4, drop_last = True
     )
     start = time.time()
     show_sample_img = np.zeros((show_y*INPUT_SIZE[1], show_x*INPUT_SIZE[0], 3), dtype=np.uint8)
@@ -122,19 +123,25 @@ if __name__=='__main__':
     y=0
     for epoch in range(10):
         print("epoch %d"%epoch)
-        for inputs,_ in iter(train_loader):
+        for inputs, labels in iter(train_loader):
             a = inputs[0]
             p = inputs[1]
             n = inputs[2]
             inputs = torch.cat((a,p,n), 0) 
             inputs = inputs.numpy()
+            a_label = labels[0]
+            p_label = labels[1]
+            n_label = labels[2]
+            labels = torch.cat((a_label, p_label, n_label), 0)
+            labels = labels.numpy()
             for b_idx in range(inputs.shape[0]):
                 im = inputs[b_idx]
+                label = labels[b_idx]
                 im = im*127.5 + 127.5
                 im = im.astype(np.uint8)
                 im = np.transpose(im, (1,2,0))
                 im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-
+                im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
                 show_sample_img[y*INPUT_SIZE[1]:(y+1)*INPUT_SIZE[1], 
                                 x*INPUT_SIZE[0]:(x+1)*INPUT_SIZE[0],:] = im
                 x = x+1
