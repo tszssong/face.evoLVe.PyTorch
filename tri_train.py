@@ -180,8 +180,8 @@ if __name__ == '__main__':
         top1   = AverageMeter()
         top5   = AverageMeter()
 
-        for inputs, labels in tqdm(iter(train_loader)):
-        #for inputs, labels in iter(train_loader):
+        # for inputs, labels in tqdm(iter(train_loader)):
+        for inputs, labels in iter(train_loader):
             start = time.time()
             if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
                 warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
@@ -196,8 +196,9 @@ if __name__ == '__main__':
             # compute output
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
-            features = BACKBONE(inputs)
-            outputs = HEAD(features, labels)
+            outputs = BACKBONE(inputs)
+            # outputs = HEAD(features, labels)
+            # loss = LOSS(outputs, labels)
             loss = LOSS(outputs, labels)
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))

@@ -12,7 +12,7 @@ configurations = {
 
         BACKBONE_NAME = 'ResNet_50', # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
         HEAD_NAME = 'ArcFace',       # support:  ['Softmax', 'ArcFace', 'CosFace', 'SphereFace', 'Am_softmax']
-        LOSS_NAME = 'Focal',   # support: ['Focal', 'Softmax', 'Triple']
+        LOSS_NAME = 'Triplet',   # support: ['Focal', 'Softmax', 'Triple']
 
         INPUT_SIZE = [112, 112], # support: [112, 112] and [224, 224]
         RGB_MEAN = [0.5, 0.5, 0.5], # for normalize inputs to [-1, 1]

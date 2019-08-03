@@ -22,14 +22,15 @@ class FocalLoss(nn.Module):
         return loss.mean()
 
 class TripletLoss(nn.Module):
-    def __init__(self, margin=0.4):
+    def __init__(self, margin=0.3):
         super(TripletLoss, self).__init__()
         self.margin = margin
 
     def forward(self, input, target):
         _batchsize = input.size(0)
-        #TODO: target is null 
+        # print("size:", _batchsize, input.size())
         assert _batchsize==target.size(0) 
+        input = F.normalize(input)
         anchor   = input[0:_batchsize//3,:]
         positive = input[_batchsize//3:2*_batchsize//3,:]
         negative = input[2*_batchsize//3:_batchsize,:]
@@ -37,6 +38,9 @@ class TripletLoss(nn.Module):
         distance_positive = (anchor - positive).pow(2).sum(1)
         distance_negative = (anchor - negative).pow(2).sum(1)
         losses = F.relu(distance_positive - distance_negative + self.margin)
+        # print("n_dist:", distance_negative)
+        # print("p_dist:", distance_positive)
+        # print("loss:", losses)
         return losses.mean() 
     # def forward(self, anchor, positive, negative, size_average=True):
     #     distance_positive = (anchor - positive).pow(2).sum(1)
