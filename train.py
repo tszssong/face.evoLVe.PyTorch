@@ -10,7 +10,7 @@ from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
-from loss.focal import FocalLoss
+from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
@@ -116,6 +116,7 @@ if __name__ == '__main__':
     sys.stdout.flush()  
 
     LOSS_DICT = {'Focal': FocalLoss(), 
+                 'Triplet': TripletLoss(), 
                  'Softmax': nn.CrossEntropyLoss()}
     LOSS = LOSS_DICT[LOSS_NAME]
     print("=" * 60)
@@ -187,6 +188,7 @@ if __name__ == '__main__':
             start = time.time()
             if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
                 warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
+            print(inputs.size(), labels.size(), type(inputs))
             # compute output
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()

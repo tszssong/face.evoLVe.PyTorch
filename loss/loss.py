@@ -11,7 +11,7 @@ class FocalLoss(nn.Module):
         self.ce = nn.CrossEntropyLoss()
 
     def forward(self, input, target):
-        print("size:", input.size(), target.size(), input.size(0), input.size()[0], input.size(1), input.size()[1])
+        # print("size:", input.size(), target.size(), input.size(0), input.size()[0], input.size(1), input.size()[1])
         # for batch in range(input.size()[0]):
         #     print(batch,":")
         #     print(input[batch])
@@ -28,6 +28,7 @@ class TripletLoss(nn.Module):
 
     def forward(self, input, target):
         _batchsize = input.size(0)
+        #TODO: target is null 
         assert _batchsize==target.size(0) 
         anchor   = input[0:_batchsize//3,:]
         positive = input[_batchsize//3:2*_batchsize//3,:]

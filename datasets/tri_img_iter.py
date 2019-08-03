@@ -46,9 +46,9 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
     return images
 
 
-class FolderImgData(data.Dataset):
+class TripletImgData(data.Dataset):
     def __init__(self, root, transform=None, target_transform=None):
-        super(FolderImgData, self).__init__()
+        super(TripletImgData, self).__init__()
         self.root = root
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
@@ -60,8 +60,9 @@ class FolderImgData(data.Dataset):
 
         self.classes = classes
         self.class_to_idx = class_to_idx
-        self.samples = samples
-        self.targets = [s[1] for s in samples]
+        self.samples = samples                #samples is a list like below:
+        #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
+        self.targets = [s[1] for s in samples] # targets is a list with ids
         print("samples:", len(self.samples))
 
     def _find_classes(self, dir):
@@ -75,13 +76,21 @@ class FolderImgData(data.Dataset):
 
     def __getitem__(self, index):
         path, target = self.samples[index]
-        # sample = pil_loader(path)               #pil load imgs
-        sample = jpeg4py_loader(path)
+        positive_idx = np.random.choice( np.where( np.array(self.targets)==target)[0] )
+        #TODO except itself
+        positive_path,_ = self.samples[positive_idx]   
+        negative_idx = np.random.choice( np.where( np.array(self.targets)!=target)[0] )
+        negative_path,_ = self.samples[negative_idx]   
+        # print("idx:", target, positive_idx, negative_idx)
+        # print("pth:", path, positive_path, negative_path)
+        img1 = pil_loader(path)
+        img2 = pil_loader(positive_path)
+        img3 = pil_loader(negative_path)
         if self.transform is not None:
-            sample = self.transform(sample)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        return sample, target
+            img1 = self.transform(img1)
+            img2 = self.transform(img2)
+            img3 = self.transform(img3)
+        return (img1, img2, img3), []
 
     def __len__(self):
         return len(self.samples)
@@ -92,7 +101,7 @@ if __name__=='__main__':
     INPUT_SIZE   = [112, 112]       # support: [112, 112] and [224, 224]
     RGB_MEAN     = [0.5, 0.5, 0.5]  # for normalize inputs to [-1, 1]
     RGB_STD      = [0.5, 0.5, 0.5]
-    DATA_ROOT = '/home/ubuntu/zms/data/msceleb'
+    DATA_ROOT = '/home/ubuntu/zms/data/msceleb/'
     show_x = 6
     show_y = 3
     train_transform = transforms.Compose([ 
@@ -102,9 +111,9 @@ if __name__=='__main__':
         transforms.ToTensor(),
         transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),
     ])
-    dataset_train = FolderImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    dataset_train = TripletImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = 2, sampler = None, pin_memory = True,
+        dataset_train, batch_size = show_x, shuffle=False, sampler = None, pin_memory = True,
         num_workers = 4, drop_last = True
     )
     start = time.time()
@@ -113,19 +122,19 @@ if __name__=='__main__':
     y=0
     for epoch in range(10):
         print("epoch %d"%epoch)
-        for inputs, labels in iter(train_loader):
+        for inputs,_ in iter(train_loader):
+            a = inputs[0]
+            p = inputs[1]
+            n = inputs[2]
+            inputs = torch.cat((a,p,n), 0) 
             inputs = inputs.numpy()
-            labels = labels.numpy()
             for b_idx in range(inputs.shape[0]):
                 im = inputs[b_idx]
-                label = labels[b_idx]
                 im = im*127.5 + 127.5
                 im = im.astype(np.uint8)
                 im = np.transpose(im, (1,2,0))
                 im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-                # print(b_idx, ":", im.shape, label)
-                # cv2.imshow("im decode:", im)
-                # cv2.waitKey(100)
+
                 show_sample_img[y*INPUT_SIZE[1]:(y+1)*INPUT_SIZE[1], 
                                 x*INPUT_SIZE[0]:(x+1)*INPUT_SIZE[0],:] = im
                 x = x+1
