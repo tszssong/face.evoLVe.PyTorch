@@ -7,7 +7,6 @@ import torch.utils.data as data
 import torchvision
 from torchvision import transforms
 import cv2
-import jpeg4py as jpeg
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 def pil_loader(path):
