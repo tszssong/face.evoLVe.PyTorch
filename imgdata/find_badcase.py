@@ -132,13 +132,6 @@ if __name__=='__main__':
     else:
         print("model file does not exists!!!")
 
-    # train_transform = transforms.Compose([ 
-    #     transforms.Resize([int(RESIZE_SCALE[0]*INPUT_SIZE[0]), int(RESIZE_SCALE[1]*INPUT_SIZE[0])]), # smaller side resized
-    #     transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
-    #     transforms.RandomHorizontalFlip(),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),
-    # ])
     train_transform = transforms.Compose([ 
         transforms.ToTensor(),
         transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),

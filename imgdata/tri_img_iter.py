@@ -16,7 +16,7 @@ def pil_loader(path):
 def jpeg4py_loader(path):
     with open(path, 'rb') as f:
         img = jpeg.JPEG(f).decode()
-        return Image.fromarray(img)  #TODO: torchvison transpose use PIL img
+        return Image.fromarray(img)  
 
 def has_file_allowed_extension(filename, extensions):
     return filename.lower().endswith(extensions)
@@ -46,20 +46,25 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
 
 
 class TripletImgData(data.Dataset):
-    def __init__(self, root, transform=None, target_transform=None):
+    def __init__(self, root, transform=None, target_transform=None, use_list = True):
         super(TripletImgData, self).__init__()
         self.root = root
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
-        classes, class_to_idx = self._find_classes(self.root)
-        samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
-        if len(samples) == 0:
-            raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
-                                "Supported extensions are: " + ",".join(extensions)))
+        if use_list:
+            samples = self._read_paths(self.root)
+        else:
+            classes, class_to_idx = self._find_classes(self.root)
+            samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
+            if len(samples) == 0:
+                raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
+                                    "Supported extensions are: " + ",".join(extensions)))
 
-        self.classes = classes
-        self.class_to_idx = class_to_idx
-        self.samples = samples                #samples is a list like below:
+            self.classes = classes
+            self.class_to_idx = class_to_idx
+            print("classes", self.classes)
+            print("class_to_idx", self.class_to_idx)
+        self.samples = samples                #samples is a list like below: type(id)=int
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
         print("samples:", len(self.samples))
@@ -73,16 +78,27 @@ class TripletImgData(data.Dataset):
         class_to_idx = {classes[i]: i for i in range(len(classes))}
         return classes, class_to_idx
 
+    def _read_paths(self, path):
+        images = []
+        with open(path, 'r') as fp:
+            lines = fp.readlines()
+            for line in lines:
+                [path, id] = line.strip().split(' ')
+                images.append( ( path, int(id) ) )    #just match the torchvison       
+        return images
+
     def __getitem__(self, index):
         path, target = self.samples[index]
-        positive_idx = np.random.choice( np.where( np.array(self.targets)==target)[0] )
-        #TODO except itself
+        pos_indexes = np.where( np.array(self.targets)==target )[0]
+        pos_indexes = np.delete( pos_indexes, np.where(pos_indexes==index))
+        if pos_indexes.shape[0] == 0:
+            positive_idx = index        # in case some id only 1 image
+        else:
+            positive_idx = np.random.choice( pos_indexes )
         positive_path,pos_label = self.samples[positive_idx]   
         negative_idx = np.random.choice( np.where( np.array(self.targets)!=target)[0] )
         negative_path,neg_label = self.samples[negative_idx]   
-        # print("label:", target, pos_label, neg_label)
-        # print("idx:", target, positive_idx, negative_idx)
-        # print("pth:", path, positive_path, negative_path)
+        
         img1 = pil_loader(path)
         img2 = pil_loader(positive_path)
         img3 = pil_loader(negative_path)
@@ -97,11 +113,12 @@ class TripletImgData(data.Dataset):
 
 
 if __name__=='__main__':
-    RESIZE_SCALE = [1.2, 1.0]
+    RESIZE_SCALE = [1.0, 1.0]
     INPUT_SIZE   = [112, 112]       # support: [112, 112] and [224, 224]
     RGB_MEAN     = [0.5, 0.5, 0.5]  # for normalize inputs to [-1, 1]
     RGB_STD      = [0.5, 0.5, 0.5]
-    DATA_ROOT = '/home/ubuntu/zms/data/msceleb/'
+    DATA_ROOT = '/home/ubuntu/zms/data/dl2dl3/'
+    DATA_ROOT = '/home/ubuntu/zms/data/dl2dl3/imgs.lst'
     show_x = 6
     show_y = 3
     train_transform = transforms.Compose([ 
@@ -111,7 +128,8 @@ if __name__=='__main__':
         transforms.ToTensor(),
         transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),
     ])
-    dataset_train = TripletImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform)
+    # dataset_train = TripletImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform, use_list=False)
+    dataset_train = TripletImgData(DATA_ROOT, train_transform)
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = show_x, shuffle=True, sampler = None,
         pin_memory = True, num_workers = 4, drop_last = True
