@@ -1,4 +1,4 @@
-import os, sys, time
+import os, sys, time, argparse
 import os.path
 from PIL import Image
 import numpy as np
@@ -49,8 +49,8 @@ class TripletImgData(data.Dataset):
     def __init__(self, root, transform=None, target_transform=None, use_list = True):
         super(TripletImgData, self).__init__()
         self.root = root
-        self.transform = transform               # transform datas
-        self.target_transform = target_transform # transform targets
+        self.transform = transform                  # transform datas
+        self.target_transform = target_transform    # transform targets
         if use_list:
             samples = self._read_paths(self.root)
         else:
@@ -62,8 +62,6 @@ class TripletImgData(data.Dataset):
 
             self.classes = classes
             self.class_to_idx = class_to_idx
-            print("classes", self.classes)
-            print("class_to_idx", self.class_to_idx)
         self.samples = samples                #samples is a list like below: type(id)=int
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
@@ -110,34 +108,58 @@ class TripletImgData(data.Dataset):
 
     def __len__(self):
         return len(self.samples)
-
+        
+def showBatch(inputs, labels, show_x=12, show_y=3):
+    inputs = inputs.numpy()
+    labels = labels.numpy()
+    im_width = inputs.shape[3]   #0,1,2,3
+    im_heigh = inputs.shape[2]   #n,c,w,h
+    show_x = min(int(inputs.shape[0]/3), show_x)
+    show_sample_img = np.zeros( (show_y*im_width, show_x*im_heigh, 3), dtype=np.uint8)
+    x=0
+    y=0
+    for b_idx in range(inputs.shape[0]):
+        im = inputs[b_idx]
+        label = labels[b_idx]
+        im = im*127.5 + 127.5
+        im = im.astype(np.uint8)
+        im = np.transpose(im, (1,2,0))
+        im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+        im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
+        show_sample_img[y*im_width:(y+1)*im_width, 
+                        x*im_heigh:(x+1)*im_heigh,:] = im
+        x = x+1
+        if x==show_x:
+            y = y+1
+            x = 0
+            if y==show_y:
+                y = 0
+                cv2.imshow("sample", show_sample_img)
+                cv2.waitKey()
 
 if __name__=='__main__':
-    RESIZE_SCALE = [1.0, 1.0]
-    INPUT_SIZE   = [112, 112]       # support: [112, 112] and [224, 224]
-    RGB_MEAN     = [0.5, 0.5, 0.5]  # for normalize inputs to [-1, 1]
-    RGB_STD      = [0.5, 0.5, 0.5]
-    DATA_ROOT = '/home/ubuntu/zms/data/dl2dl3/'
-    DATA_ROOT = '/home/ubuntu/zms/data/dl2dl3/imgs.lst'
-    show_x = 6
-    show_y = 3
+    parser = argparse.ArgumentParser(description='triplet image iter')
+    parser.add_argument('--data-root', default='/home/ubuntu/zms/data/dl2dl3/imgs.lst')
+    parser.add_argument('--batch-size', default=8)
+    parser.add_argument('--image-size', default='112, 112')
+    args = parser.parse_args()
+    im_width = int(args.image_size.split(',')[0])
+    im_heigh = int(args.image_size.split(',')[1])
+    print("triplet image iter size:", im_width, im_heigh)
     train_transform = transforms.Compose([ 
-        transforms.Resize([int(RESIZE_SCALE[0]*INPUT_SIZE[0]), int(RESIZE_SCALE[1]*INPUT_SIZE[0])]), # smaller side resized
-        transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
+        transforms.Resize([112,112]), # smaller side resized
+        transforms.RandomCrop([ im_width, im_heigh ]),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(mean = RGB_MEAN, std = RGB_STD),
+        transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] ),
     ])
-    # dataset_train = TripletImgData(os.path.join(DATA_ROOT, 'imgs'), train_transform, use_list=False)
-    dataset_train = TripletImgData(DATA_ROOT, train_transform)
+    # dataset_train = TripletImgData(os.path.join(args.data_root, '../imgs'), train_transform, use_list=False)
+    dataset_train = TripletImgData(args.data_root, train_transform)
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = show_x, shuffle=True, sampler = None,
+        dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
         pin_memory = True, num_workers = 4, drop_last = True
     )
     start = time.time()
-    show_sample_img = np.zeros((show_y*INPUT_SIZE[1], show_x*INPUT_SIZE[0], 3), dtype=np.uint8)
-    x=0
-    y=0
     for epoch in range(10):
         print("epoch %d"%epoch)
         for inputs, labels in iter(train_loader):
@@ -145,29 +167,9 @@ if __name__=='__main__':
             p = inputs[1]
             n = inputs[2]
             inputs = torch.cat((a,p,n), 0) 
-            inputs = inputs.numpy()
             a_label = labels[0]
             p_label = labels[1]
             n_label = labels[2]
             labels = torch.cat((a_label, p_label, n_label), 0)
-            labels = labels.numpy()
-            for b_idx in range(inputs.shape[0]):
-                im = inputs[b_idx]
-                label = labels[b_idx]
-                im = im*127.5 + 127.5
-                im = im.astype(np.uint8)
-                im = np.transpose(im, (1,2,0))
-                im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-                im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
-                show_sample_img[y*INPUT_SIZE[1]:(y+1)*INPUT_SIZE[1], 
-                                x*INPUT_SIZE[0]:(x+1)*INPUT_SIZE[0],:] = im
-                x = x+1
-                if x==show_x:
-                    y = y+1
-                    x = 0
-                    if y==show_y:
-                        y = 0
-                        cv2.imshow("sample", show_sample_img)
-                        cv2.waitKey()
-
+            showBatch(inputs, labels, args.batch_size, show_y=3)
     print("10 epoch use time: %.2f s"%(time.time()-start))
