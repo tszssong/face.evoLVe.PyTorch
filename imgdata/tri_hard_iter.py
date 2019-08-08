@@ -9,6 +9,7 @@ from torchvision import transforms
 import argparse
 import torch.nn.functional as F
 sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
+sys.path.append( os.path.join( os.path.dirname(__file__),'../imgdata/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
 from show_img import showBatch
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -55,16 +56,15 @@ class TripletHardImgData(data.Dataset):
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
         if use_list:
-            samples = self._read_paths(self.root)
+            samples, classes = self._read_paths(self.root)
         else:
             classes, class_to_idx = self._find_classes(self.root)
             samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
             if len(samples) == 0:
                 raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
                                     "Supported extensions are: " + ",".join(extensions)))
-
-            self.classes = classes
             self.class_to_idx = class_to_idx
+        self.classes = classes
         self.samples = samples                #samples is a list like below:
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
@@ -81,12 +81,14 @@ class TripletHardImgData(data.Dataset):
 
     def _read_paths(self, path):
         images = []
+        classes = []
         with open(path, 'r') as fp:
             lines = fp.readlines()
             for line in lines:
                 [path, id] = line.strip().split(' ')
-                images.append( ( path, int(id) ) )    #just match the torchvison       
-        return images
+                images.append( ( path, int(id) ) )    #just match the torchvison
+                classes.append(path)       
+        return images, classes
 
     def __getitem__(self, index):
         path, target = self.samples[index]
