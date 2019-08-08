@@ -125,7 +125,7 @@ def showBatch(inputs, labels, show_x=12, show_y=3):
         im = im.astype(np.uint8)
         im = np.transpose(im, (1,2,0))
         im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-        im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
+        im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255,0), 1)
         show_sample_img[y*im_width:(y+1)*im_width, 
                         x*im_heigh:(x+1)*im_heigh,:] = im
         x = x+1
@@ -139,7 +139,7 @@ def showBatch(inputs, labels, show_x=12, show_y=3):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='triplet image iter')
-    parser.add_argument('--data-root', default='/home/ubuntu/zms/data/dl2dl3/imgs.lst')
+    parser.add_argument('--data-root', default='/home/ubuntu/zms/data/dl2dl3/')
     parser.add_argument('--batch-size', default=8)
     parser.add_argument('--image-size', default='112, 112')
     args = parser.parse_args()
@@ -153,8 +153,8 @@ if __name__=='__main__':
         transforms.ToTensor(),
         transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] ),
     ])
-    # dataset_train = TripletImgData(os.path.join(args.data_root, '../imgs'), train_transform, use_list=False)
-    dataset_train = TripletImgData(args.data_root, train_transform)
+    # dataset_train = TripletImgData(os.path.join(args.data_root, 'imgs'), train_transform, use_list=False)
+    dataset_train = TripletImgData( os.path.join(args.data_root, 'imgs.lst'), train_transform, use_list=True)
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
         pin_memory = True, num_workers = 4, drop_last = True
