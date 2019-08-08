@@ -50,11 +50,20 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
     return images
 
 class TripletHardImgData(data.Dataset):
-    def __init__(self, root, model, transform=None, target_transform=None, use_list = True):
+    def __init__(self, root, model, \
+                 batch_size, bag_size, input_size, \
+                 transform=None, target_transform=None, use_list = True):
         super(TripletHardImgData, self).__init__()
+        print("triplet hard image dataloader inited")
         self.root = root
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
+        self.model = model
+        self.batch_size = batch_size
+        self.bag_size = bag_size
+        self.input_size = input_size
+        self._cur = 0
+        self._seq = []
         if use_list:
             samples, classes = self._read_paths(self.root)
         else:
@@ -112,6 +121,75 @@ class TripletHardImgData(data.Dataset):
             img3 = self.transform(img3)
         return (img1, img2, img3), (target, pos_label, neg_label)
 
+    #https://blog.csdn.net/Tan_HandSome/article/details/82501902
+    def _get_dist(self, emb):
+        vecProd = np.dot(emb, emb.transpose())
+        print(vecProd.shape)
+        sqr_emb = emb**2
+        sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
+        ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
+
+        sqr_et = emb**2
+        sum_sqr_et = np.sum(sqr_et, axis=1)
+        ex_sum_sqr_et = np.tile(sum_sqr_et, (vecProd.shape[0], 1))
+        sq_ed = ex_sum_sqr_emb + ex_sum_sqr_et - 2*vecProd
+        sq_ed[sq_ed<0] = 0.0
+        ed = np.sqrt(sq_ed)
+
+        return np.asarray(ed)
+   
+
+    def reset(self, model):
+        print("data loader reset")
+        self.model = model   #TODO: pytorch model update?
+        if self._cur + self.bag_size > len(self.classes):
+            self._cur = 0    # not enough for a bag
+        _index = 0
+        bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
+        baglabel = torch.empty(self.bag_size, 1)
+        while _index<self.bag_size:
+            _path, _target = self.samples[_index + self._cur]
+            img = pil_loader(_path)
+            if self.transform is not None:
+                img = self.transform(img)
+            bagdata[_index] = img
+            baglabel[_index] = _target
+            _index = _index + 1
+            print(_index + self._cur, end=' '), 
+            sys.stdout.flush()
+        print("bag data ready:", bagdata.size(), baglabel.size())
+        self._cur += self.bag_size
+        features = model(bagdata)
+        features = F.normalize(features).detach()
+        # print("bag results:", features.size())
+        dist_matrix = torch.empty(self.bag_size, self.bag_size)
+        dist_matrix = self._get_dist(features.numpy())
+        start = time.time()
+        np.set_printoptions(suppress=True)
+        print("cal distance use time: %.6f s"%(time.time()-start))
+        
+        assert dist_matrix.shape[0] == self.bag_size
+        baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
+        for a_idx in range( self.bag_size ):
+            dist = dist_matrix[a_idx, :]
+            a_label = baglabel_1v[a_idx]
+            print("dist", dist)
+            print("label", baglabel_1v)
+            # TODO: not ready!
+            p_dist = dist[ np.where(baglabel_1v==a_label) ]
+            p_candidate = np.argsort(p_dist) #p_dist.argsort()          #[-:] #positive
+            p_idx = np.random.choice(p_candidate)
+            n_dist = dist[ np.where(baglabel_1v!=a_label) ]
+            n_candidate = n_dist.argsort()          #[:n_dist.shape[0]/2]
+            n_idx = np.random.choice(n_candidate)
+            print("triplet find:", a_idx, p_idx, n_idx)
+            print(baglabel_1v)
+            print(dist)
+
+
+
+       
+
     def __len__(self):
         return len(self.samples)
 
@@ -120,11 +198,12 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='triplet image iter')
     parser.add_argument('--data-root',  default='/home/ubuntu/zms/data/dl2dl3/')
     parser.add_argument('--batch-size', default=8)
-    parser.add_argument('--image-size', default='112, 112')
+    parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--bag-size',   default=6)
     args = parser.parse_args()
-    im_width = int(args.image_size.split(',')[0])
-    im_heigh = int(args.image_size.split(',')[1])
+    im_width = args.image_size[0]
+    im_heigh = args.image_size[1]
     print("triplet hard image iter size:", im_width, im_heigh)
 
     model = ResNet_50([im_width, im_heigh])
@@ -144,7 +223,9 @@ if __name__=='__main__':
     ])
     
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, transform=train_transform, use_list=True)
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, \
+                    batch_size = args.batch_size, bag_size = args.bag_size, input_size = [112,112], \
+                    transform=train_transform, use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
@@ -155,6 +236,7 @@ if __name__=='__main__':
     embeddings = np.zeros([args.batch_size*3, embedding_size])
     for epoch in range(10):
         print("epoch %d"%epoch)
+        dataset_train.reset(model)
         for inputs, labels in iter(train_loader):
             a = inputs[0]
             p = inputs[1]
@@ -177,8 +259,8 @@ if __name__=='__main__':
             dp = d_pos.numpy()
             dn = d_neg.numpy()
 
-            print("average p_dist:", np.average(dp))
-            print("average n_dist:", np.average(dn))
+            # print("average p_dist:", np.average(dp))
+            # print("average n_dist:", np.average(dn))
            
             inputs = inputs.numpy()
             labels = labels.numpy()

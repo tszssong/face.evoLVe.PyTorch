@@ -8,14 +8,14 @@ def showBatch(inputs, labels, features=None, show_x=12, show_y=3):
     im_heigh = inputs.shape[2]   #n,c,w,h
     show_x = min(int(inputs.shape[0]/3), show_x)
     if not features is None:
-        print("showBatch:", inputs.shape, features.shape)
+        # print("showBatch:", inputs.shape, features.shape)
         assert inputs.shape[0] == features.shape[0]
         anchor   = features[0:show_x,:]
         positive = features[show_x:2*show_x,:]
         negative = features[2*show_x:3*show_x,:]
         dp = np.sum( np.power((anchor - positive), 2), axis=1 )
         dn = np.sum( np.power((anchor - negative), 2), axis=1)
-        print("showBatch:", dp, dn)
+        # print("showBatch:", dp, dn)
     show_sample_img = np.zeros( (show_y*im_width, show_x*im_heigh, 3), dtype=np.uint8)
     x=0
     y=0
@@ -40,4 +40,4 @@ def showBatch(inputs, labels, features=None, show_x=12, show_y=3):
             if y==show_y:
                 y = 0
                 cv2.imshow("sample", show_sample_img)
-                cv2.waitKey()
+                cv2.waitKey(1)
