@@ -10,7 +10,7 @@ import argparse
 import torch.nn.functional as F
 sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
-
+from show_img import showBatch
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 def pil_loader(path):
@@ -54,14 +54,17 @@ class TripletHardImgData(data.Dataset):
         self.root = root
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
-        classes, class_to_idx = self._find_classes(self.root)
-        samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
-        if len(samples) == 0:
-            raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
-                                "Supported extensions are: " + ",".join(extensions)))
+        if use_list:
+            samples = self._read_paths(self.root)
+        else:
+            classes, class_to_idx = self._find_classes(self.root)
+            samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
+            if len(samples) == 0:
+                raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
+                                    "Supported extensions are: " + ",".join(extensions)))
 
-        self.classes = classes
-        self.class_to_idx = class_to_idx
+            self.classes = classes
+            self.class_to_idx = class_to_idx
         self.samples = samples                #samples is a list like below:
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
@@ -75,6 +78,15 @@ class TripletHardImgData(data.Dataset):
         classes.sort()
         class_to_idx = {classes[i]: i for i in range(len(classes))}
         return classes, class_to_idx
+
+    def _read_paths(self, path):
+        images = []
+        with open(path, 'r') as fp:
+            lines = fp.readlines()
+            for line in lines:
+                [path, id] = line.strip().split(' ')
+                images.append( ( path, int(id) ) )    #just match the torchvison       
+        return images
 
     def __getitem__(self, index):
         path, target = self.samples[index]
@@ -100,45 +112,6 @@ class TripletHardImgData(data.Dataset):
 
     def __len__(self):
         return len(self.samples)
-
-def showBatch(inputs, labels, features=None, show_x=12, show_y=3):
-    im_width = inputs.shape[3]   #0,1,2,3
-    im_heigh = inputs.shape[2]   #n,c,w,h
-    show_x = min(int(inputs.shape[0]/3), show_x)
-    if not features is None:
-        print("showBatch:", inputs.shape, features.shape)
-        assert inputs.shape[0] == features.shape[0]
-        anchor   = features[0:show_x,:]
-        positive = features[show_x:2*show_x,:]
-        negative = features[2*show_x:3*show_x,:]
-        dp = np.sum( np.power((anchor - positive), 2), axis=1 )
-        dn = np.sum( np.power((anchor - negative), 2), axis=1)
-        print("showBatch:", dp, dn)
-    show_sample_img = np.zeros( (show_y*im_width, show_x*im_heigh, 3), dtype=np.uint8)
-    x=0
-    y=0
-    for b_idx in range(inputs.shape[0]):
-        im = inputs[b_idx]
-        label = labels[b_idx]
-        im = im*127.5 + 127.5
-        im = im.astype(np.uint8)
-        im = np.transpose(im, (1,2,0))
-        im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-        im = cv2.putText(im, str(label), (2,20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
-        if( (not features is None) and (y==1) ):
-            im = cv2.putText(im, str(dp[x]), (2,80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
-        if( (not features is None) and (y==2)):
-            im = cv2.putText(im, str(dn[x]), (2,80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255,0), 2)
-        show_sample_img[y*im_width:(y+1)*im_width, 
-                        x*im_heigh:(x+1)*im_heigh,:] = im
-        x = x+1
-        if x==show_x:
-            y = y+1
-            x = 0
-            if y==show_y:
-                y = 0
-                cv2.imshow("sample", show_sample_img)
-                cv2.waitKey()
 
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -168,8 +141,8 @@ if __name__=='__main__':
         transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] ),
     ])
     
-    dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
-    # dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, transform=train_transform, use_list=True)
+    # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, transform=train_transform, use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,

@@ -7,6 +7,7 @@ import torch.utils.data as data
 import torchvision
 from torchvision import transforms
 import cv2
+from show_img import showBatch
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 def pil_loader(path):
@@ -109,34 +110,6 @@ class TripletImgData(data.Dataset):
     def __len__(self):
         return len(self.samples)
         
-def showBatch(inputs, labels, show_x=12, show_y=3):
-    inputs = inputs.numpy()
-    labels = labels.numpy()
-    im_width = inputs.shape[3]   #0,1,2,3
-    im_heigh = inputs.shape[2]   #n,c,w,h
-    show_x = min(int(inputs.shape[0]/3), show_x)
-    show_sample_img = np.zeros( (show_y*im_width, show_x*im_heigh, 3), dtype=np.uint8)
-    x=0
-    y=0
-    for b_idx in range(inputs.shape[0]):
-        im = inputs[b_idx]
-        label = labels[b_idx]
-        im = im*127.5 + 127.5
-        im = im.astype(np.uint8)
-        im = np.transpose(im, (1,2,0))
-        im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-        im = cv2.putText(im, str(label), (2,50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255,0), 1)
-        show_sample_img[y*im_width:(y+1)*im_width, 
-                        x*im_heigh:(x+1)*im_heigh,:] = im
-        x = x+1
-        if x==show_x:
-            y = y+1
-            x = 0
-            if y==show_y:
-                y = 0
-                cv2.imshow("sample", show_sample_img)
-                cv2.waitKey()
-
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='triplet image iter')
     parser.add_argument('--data-root', default='/home/ubuntu/zms/data/dl2dl3/')
@@ -171,5 +144,7 @@ if __name__=='__main__':
             p_label = labels[1]
             n_label = labels[2]
             labels = torch.cat((a_label, p_label, n_label), 0)
-            showBatch(inputs, labels, args.batch_size, show_y=3)
+            inputs = inputs.numpy()
+            labels = labels.numpy()
+            showBatch(inputs, labels, show_x=args.batch_size, show_y=3)
     print("10 epoch use time: %.2f s"%(time.time()-start))
