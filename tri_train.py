@@ -28,18 +28,18 @@ if __name__ == '__main__':
     parser.add_argument('--backbone-name', default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', default=[112, 112])
     parser.add_argument('--loss-name', default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
-    parser.add_argument('--embedding-size', default=512)
-    parser.add_argument('--batch-size', default=12)
-    parser.add_argument('--bag-size', default=120)
-    parser.add_argument('--lr', default=0.05)
+    parser.add_argument('--embedding-size', type=int, default=512)
+    parser.add_argument('--batch-size', type=int, default=12)
+    parser.add_argument('--bag-size', type=int, default=120)
+    parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', default=[35, 65, 95])
     parser.add_argument('--weight-decay', default=5e-4)
     parser.add_argument('--momentum', default=0.9)
-    parser.add_argument('--num-epoch', default=125)
-    parser.add_argument('--num-workers', default=6)
+    parser.add_argument('--num-epoch', type=int, default=125)
+    parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-id', default=[0])
-    parser.add_argument('--disp_freq', default=1)
-    parser.add_argument('--test_epoch', default=10)
+    parser.add_argument('--disp_freq', type=int, default=1)
+    parser.add_argument('--test_epoch', type=int, default=10)
     args = parser.parse_args()
     torch.manual_seed(1337)
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
@@ -186,10 +186,10 @@ if __name__ == '__main__':
         print("=" * 60)
         sys.stdout.flush() 
 
-        if (epoch==args.test_epoch):
+        if (epoch%args.test_epoch==1):
             # perform validation & save checkpoints per epoch
-            print("=" * 60)
-            print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
+            print("=" * 60, "\nPerform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
+            sys.stdout.flush() 
             accuracy_lfw, best_threshold_lfw, roc_curve_lfw = perform_val(MULTI_GPU, DEVICE, args.embedding_size, BATCH_SIZE, BACKBONE, lfw, lfw_issame)
             buffer_val(writer, "LFW", accuracy_lfw, best_threshold_lfw, roc_curve_lfw, epoch + 1)
             accuracy_cfp_ff, best_threshold_cfp_ff, roc_curve_cfp_ff = perform_val(MULTI_GPU, DEVICE, args.embedding_size, BATCH_SIZE, BACKBONE, cfp_ff, cfp_ff_issame)
