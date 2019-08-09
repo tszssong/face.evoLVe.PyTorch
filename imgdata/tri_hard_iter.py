@@ -136,10 +136,11 @@ class TripletHardImgData(data.Dataset):
         return np.asarray(ed)
    
 
-    def reset(self, model):
+    def reset(self, model=None, device="cpu"):
         print("data loader reset")
-        self.model = model   #TODO: pytorch model update?
-        if self._cur + self.bag_size > len(self.classes):
+        model.eval()
+        model.to(device)
+        if self._cur + self.bag_size > len(self.samples):
             self._cur = 0    # not enough for a bag
         _index = 0
         self.bag_seq = []
@@ -157,14 +158,14 @@ class TripletHardImgData(data.Dataset):
             sys.stdout.flush()
         print("bag data ready:", bagdata.size(), baglabel.size())
         self._cur += self.bag_size
-        features = model(bagdata)
-        features = F.normalize(features).detach()
+        features = model( bagdata.to(device) )
+        features = F.normalize(features).detach().cpu()
         dist_matrix = torch.empty(self.bag_size, self.bag_size)
         dist_matrix = self._get_dist(features.numpy())
         start = time.time()
         np.set_printoptions(suppress=True)
         print("cal distance use time: %.6f s"%(time.time()-start))
-        
+        sys.stdout.flush()
         assert dist_matrix.shape[0] == self.bag_size
         baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
         for a_idx in range( self.bag_size ):
@@ -191,7 +192,7 @@ class TripletHardImgData(data.Dataset):
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description='triplet image iter')
-    parser.add_argument('--data-root',  default='/home/ubuntu/zms/data/dl2dl3/')
+    parser.add_argument('--data-root',  default='/home/ubuntu/zms/data/ms1m_emore100/')
     parser.add_argument('--batch-size', default=8)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')

@@ -40,4 +40,4 @@ def showBatch(inputs, labels, features=None, show_x=12, show_y=3):
             if y==show_y:
                 y = 0
                 cv2.imshow("sample", show_sample_img)
-                cv2.waitKey()
+                cv2.waitKey(1)
