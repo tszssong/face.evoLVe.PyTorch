@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', default=512)
     parser.add_argument('--batch-size', default=12)
+    parser.add_argument('--bag-size', default=120)
     parser.add_argument('--lr', default=0.05)
     parser.add_argument('--lr-stages', default=[1, 2, 3, 4, 5, 35, 65, 95])
     parser.add_argument('--weight-decay', default=5e-4)
@@ -91,7 +92,10 @@ if __name__ == '__main__':
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
     ])
 
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), BACKBONE, transform=train_transform, use_list=True)
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), BACKBONE, \
+        batch_size = args.batch_size, bag_size = args.bag_size \
+        transform=train_transform, use_list=True)
+        
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
 
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = BATCH_SIZE, shuffle=True, \

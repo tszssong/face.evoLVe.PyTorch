@@ -63,7 +63,7 @@ class TripletHardImgData(data.Dataset):
         self.bag_size = bag_size
         self.input_size = input_size
         self._cur = 0
-        self._seq = []
+        self.bag_seq = []
         if use_list:
             samples, classes = self._read_paths(self.root)
         else:
@@ -78,6 +78,7 @@ class TripletHardImgData(data.Dataset):
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
         print("samples:", len(self.samples))
+        self.reset(self.model)
 
     def _find_classes(self, dir):
         if sys.version_info >= (3, 5):   # Faster and available in Python 3.5 and above
@@ -100,18 +101,14 @@ class TripletHardImgData(data.Dataset):
         return images, classes
 
     def __getitem__(self, index):
-        path, target = self.samples[index]
-        pos_indexes = np.where( np.array(self.targets)==target )[0]
-        pos_indexes = np.delete( pos_indexes, np.where(pos_indexes==index))
-        if pos_indexes.shape[0] == 0:
-            positive_idx = index        # in case some id only 1 image
-        else:
-            positive_idx = np.random.choice( pos_indexes )
-        
-        positive_path,pos_label = self.samples[positive_idx]   
-        negative_idx = np.random.choice( np.where( np.array(self.targets)!=target)[0] )
-        negative_path,neg_label = self.samples[negative_idx]  
-
+        item = self.bag_seq[index]
+        a_idx, p_idx, n_idx = item
+        a_idx = a_idx + self._cur - self.bag_size
+        p_idx = p_idx + self._cur - self.bag_size
+        n_idx = n_idx + self._cur - self.bag_size
+        path, target = self.samples[a_idx]
+        positive_path, pos_label = self.samples[p_idx]
+        negative_path, neg_label = self.samples[n_idx]
         img1 = pil_loader(path)
         img2 = pil_loader(positive_path)
         img3 = pil_loader(negative_path)
@@ -145,6 +142,7 @@ class TripletHardImgData(data.Dataset):
         if self._cur + self.bag_size > len(self.classes):
             self._cur = 0    # not enough for a bag
         _index = 0
+        self.bag_seq = []
         bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
         baglabel = torch.empty(self.bag_size, 1)
         while _index<self.bag_size:
@@ -155,13 +153,12 @@ class TripletHardImgData(data.Dataset):
             bagdata[_index] = img
             baglabel[_index] = _target
             _index = _index + 1
-            print(_index + self._cur, end=' '), 
+            # print(_index + self._cur, end=' '), 
             sys.stdout.flush()
         print("bag data ready:", bagdata.size(), baglabel.size())
         self._cur += self.bag_size
         features = model(bagdata)
         features = F.normalize(features).detach()
-        # print("bag results:", features.size())
         dist_matrix = torch.empty(self.bag_size, self.bag_size)
         dist_matrix = self._get_dist(features.numpy())
         start = time.time()
@@ -171,27 +168,25 @@ class TripletHardImgData(data.Dataset):
         assert dist_matrix.shape[0] == self.bag_size
         baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
         for a_idx in range( self.bag_size ):
-            dist = dist_matrix[a_idx, :]
+            # p_dist = dist_matrix[a_idx]
+            n_dist = dist_matrix[a_idx]
             a_label = baglabel_1v[a_idx]
-            print("dist", dist)
-            print("label", baglabel_1v)
-            # TODO: not ready!
-            p_dist = dist[ np.where(baglabel_1v==a_label) ]
-            p_candidate = np.argsort(p_dist) #p_dist.argsort()          #[-:] #positive
-            p_idx = np.random.choice(p_candidate)
-            n_dist = dist[ np.where(baglabel_1v!=a_label) ]
-            n_candidate = n_dist.argsort()          #[:n_dist.shape[0]/2]
+            
+            # TODO:  skip 1 img/id
+            p_idx = np.random.choice( np.where(baglabel_1v==a_label)[0] )
+            n_dist[ np.where(baglabel_1v==a_label) ] = 2048           #fill same ids with a bigNumber
+            numCandidate = int( max(1, self.bag_size*0.1) )
+            numCandidate = 1
+            n_candidate = n_dist.argsort()[ :numCandidate ]    
             n_idx = np.random.choice(n_candidate)
-            print("triplet find:", a_idx, p_idx, n_idx)
-            print(baglabel_1v)
-            print(dist)
-
-
-
-       
+            # print("dist after:", n_dist)
+            # print("triplet find:", a_idx, p_idx, n_idx)
+            self.bag_seq.append( (a_idx, p_idx, n_idx) )
+          
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.bag_seq)
+        # return len(self.samples)
 
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -200,7 +195,7 @@ if __name__=='__main__':
     parser.add_argument('--batch-size', default=8)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--bag-size',   default=6)
+    parser.add_argument('--bag-size',   default=120)
     args = parser.parse_args()
     im_width = args.image_size[0]
     im_heigh = args.image_size[1]
