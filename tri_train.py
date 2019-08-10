@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=50)
-    parser.add_argument('--bag-size', type=int, default=400)
+    parser.add_argument('--bag-size', type=int, default=4000)
     parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")

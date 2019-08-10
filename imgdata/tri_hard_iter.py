@@ -98,8 +98,8 @@ class TripletHardImgData(data.Dataset):
                 [path, id] = line.strip().split(' ')
                 images.append( ( path, int(id) ) )    #just match the torchvison
                 dir = path.split('/')[-2]
-                if(not dir in classes):
-                    classes.append(dir)
+                if(not dir in classes):    #TODO: returen max id as number class
+                    classes.append(dir)   
                 if(len(images)%10000==0):   
                     print(len(images),'processed.',end=' ')
                 sys.stdout.flush()    
@@ -146,6 +146,7 @@ class TripletHardImgData(data.Dataset):
         if self._cur + self.bag_size > len(self.samples):
             self._cur = 0    # not enough for a bag
         _index = 0
+        start = time.time()
         self.bag_seq = []
         bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
         baglabel = torch.empty(self.bag_size, 1)
@@ -157,15 +158,24 @@ class TripletHardImgData(data.Dataset):
             bagdata[_index] = img
             baglabel[_index] = _target
             _index = _index + 1
-            
+        print("loadImg time: %.6f s"%((time.time()-start)), end=' ')    
         self._cur += self.bag_size
-        features = model( bagdata.to(device) )
-        features = F.normalize(features).detach().cpu()
+        start = time.time()
+        # features = torch.empty(self.bag_size, self.embedding_size)
+        features = torch.empty(self.bag_size, 512)
+        for idx in range(int(self.bag_size/self.batch_size)):
+            fea = model(bagdata[idx*self.batch_size:(idx+1)*self.batch_size,:].to(device))
+            fea = F.normalize(fea).detach()
+            features[ idx*self.batch_size:(idx+1)*self.batch_size,: ] = fea
+        features.cpu()
+        print("getFeature time: %.6f s"%((time.time()-start))) 
+        # features = model( bagdata.to(device) )
+        # features = F.normalize(features).detach().cpu()
+        start = time.time()
         dist_matrix = torch.empty(self.bag_size, self.bag_size)
         dist_matrix = self._get_dist(features.numpy())
-        start = time.time()
         np.set_printoptions(suppress=True)
-        print("dataLoader reset:", bagdata.size(), "distMatric use time: %.6f ms"%((time.time()-start)*1000))
+        print("dataLoader reset:", bagdata.size(), "distMatric use time: %.6f s"%((time.time()-start)))
         sys.stdout.flush()
         assert dist_matrix.shape[0] == self.bag_size
         baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
