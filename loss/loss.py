@@ -1,3 +1,4 @@
+# import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -22,7 +23,7 @@ class TripletLoss(nn.Module):
         super(TripletLoss, self).__init__()
         self.margin = margin
 
-    def forward(self, input, target):
+    def forward(self, input, target, m=0):
         _batchsize = input.size(0)
         assert _batchsize==target.size(0) 
         input = F.normalize(input)
@@ -32,7 +33,14 @@ class TripletLoss(nn.Module):
         
         distance_positive = (anchor - positive).pow(2).sum(1)
         distance_negative = (anchor - negative).pow(2).sum(1)
-        distances = distance_positive - distance_negative + self.margin
+        if(m==0):
+            distances = distance_positive - distance_negative + self.margin
+        else:
+            distances = distance_positive - distance_negative + m
         losses = F.relu(distances)
+        # print(m)
+        # print(distances, distances.sum(), distances.sum())
+        # print(losses, losses.mean(), losses.sum())
+        # sys.stdout.flush()
         # losses = nn.PReLU(distances)
         return losses.mean(), losses 

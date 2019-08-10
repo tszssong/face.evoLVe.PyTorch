@@ -33,9 +33,9 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=12)
+    parser.add_argument('--batch-size', type=int, default=120)
     parser.add_argument('--bag-size', type=int, default=120)
-    parser.add_argument('--margin', type=float, default=0.3)
+    parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
@@ -47,6 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_epoch', type=int, default=2000)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
+    margin = args.margin
 
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
@@ -142,11 +143,11 @@ if __name__ == '__main__':
                 features = F.normalize(outputs).detach()
                 showBatch(inputs.cpu().numpy(), labels.cpu().numpy(), features.cpu().numpy(), args.batch_size)
             
-            loss, loss_batch = LOSS(outputs, labels)
+            loss, loss_batch = LOSS(outputs, labels, margin)
             loss_batch = loss_batch.detach().cpu().numpy()
             n_err = np.where(loss_batch!=0)[0].shape[0] 
             prec = 1.0 - float(n_err) / loss_batch.shape[0]
-           
+            
             losses.update(loss.data.item(), inputs.size(0))
             top1.update(prec, inputs.size(0))
             # compute gradient and do SGD step
@@ -156,6 +157,10 @@ if __name__ == '__main__':
             batch += 1 # batch index
             
         # training statistics per epoch (buffer for visualization)
+        if(top1.avg > 0.98):
+            margin += 0.01
+            print("margin fixed to:", margin)
+            sys.stdout.flush()
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
