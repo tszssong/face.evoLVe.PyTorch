@@ -174,12 +174,19 @@ class TripletHardImgData(data.Dataset):
         assert dist_matrix.shape[0] == self.bag_size
         baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
         for a_idx in range( self.bag_size ):
-            # p_dist = dist_matrix[a_idx]
+            p_dist = dist_matrix[a_idx].copy()
             n_dist = dist_matrix[a_idx]
             a_label = baglabel_1v[a_idx]
             
             # TODO:  skip 1 img/id
-            p_idx = np.random.choice( np.where(baglabel_1v==a_label)[0] )
+            p_dist[np.where(baglabel_1v!=a_label)] = 0
+            numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
+            p_candidate = p_dist.argsort()[-numCandidate:]
+            p_idx = np.random.choice( p_candidate )
+            # print(numCandidate)
+            # print( np.where(baglabel_1v==a_label) )
+            # print(p_candidate)
+            # p_idx = np.random.choice( np.where(baglabel_1v==a_label)[0] )
             n_dist[ np.where(baglabel_1v==a_label) ] = 2048           #fill same ids with a bigNumber
             numCandidate = int( max(1, self.bag_size*0.1) )
             # numCandidate = 1
@@ -198,7 +205,7 @@ if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description='triplet image iter')
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100/')
-    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--batch-size', type=int, default=12)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--bag-size', type=int, default=120)
