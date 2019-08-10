@@ -99,7 +99,9 @@ class TripletHardImgData(data.Dataset):
                 images.append( ( path, int(id) ) )    #just match the torchvison
                 dir = path.split('/')[-2]
                 if(not dir in classes):
-                    classes.append(dir)       
+                    classes.append(dir)   
+                print('.',end=' ')
+                sys.stdout.flush()    
         return images, classes
 
     def __getitem__(self, index):
