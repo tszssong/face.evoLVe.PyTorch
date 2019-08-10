@@ -65,7 +65,7 @@ class TripletHardImgData(data.Dataset):
         self._cur = 0
         self.bag_seq = []
         if use_list:
-            samples, classes = self._read_paths(self.root)
+            samples = self._read_paths(self.root)
         else:
             classes, class_to_idx = self._find_classes(self.root)
             samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
@@ -73,7 +73,7 @@ class TripletHardImgData(data.Dataset):
                 raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
                                     "Supported extensions are: " + ",".join(extensions)))
             self.class_to_idx = class_to_idx
-        self.classes = classes
+            self.classes = classes
         self.samples = samples                #samples is a list like below:
         #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
         self.targets = [s[1] for s in samples] # targets is a list with ids
@@ -91,19 +91,12 @@ class TripletHardImgData(data.Dataset):
 
     def _read_paths(self, path):
         images = []
-        classes = []
         with open(path, 'r') as fp:
             lines = fp.readlines()
             for line in lines:
                 [path, id] = line.strip().split(' ')
-                images.append( ( path, int(id) ) )    #just match the torchvison
-                dir = path.split('/')[-2]
-                if(not dir in classes):    #TODO: returen max id as number class
-                    classes.append(dir)   
-                if(len(images)%10000==0):   
-                    print(len(images),'processed.',end=' ')
-                sys.stdout.flush()    
-        return images, classes
+                images.append( ( path, int(id) ) )    # match torchvison Folder fomat 
+        return images 
 
     def __getitem__(self, index):
         item = self.bag_seq[index]
@@ -122,6 +115,7 @@ class TripletHardImgData(data.Dataset):
             img2 = self.transform(img2)
             img3 = self.transform(img3)
         return (img1, img2, img3), (target, pos_label, neg_label)
+        # return self.bag_imgs[index], self.bag_labels[index]
 
     #https://blog.csdn.net/Tan_HandSome/article/details/82501902
     def _get_dist(self, emb):
@@ -188,7 +182,7 @@ class TripletHardImgData(data.Dataset):
             p_idx = np.random.choice( np.where(baglabel_1v==a_label)[0] )
             n_dist[ np.where(baglabel_1v==a_label) ] = 2048           #fill same ids with a bigNumber
             numCandidate = int( max(1, self.bag_size*0.1) )
-            numCandidate = 1
+            # numCandidate = 1
             n_candidate = n_dist.argsort()[ :numCandidate ]    
             n_idx = np.random.choice(n_candidate)
             # print("dist after:", n_dist)
@@ -203,11 +197,11 @@ class TripletHardImgData(data.Dataset):
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description='triplet image iter')
-    parser.add_argument('--data-root',  default='/home/ubuntu/zms/data/ms1m_emore100/')
-    parser.add_argument('--batch-size', default=8)
+    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100/')
+    parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--image-size', default=[112, 112])
-    parser.add_argument('--model-path', default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--bag-size',   default=120)
+    parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--bag-size', type=int, default=120)
     args = parser.parse_args()
     im_width = args.image_size[0]
     im_heigh = args.image_size[1]
@@ -240,10 +234,11 @@ if __name__=='__main__':
     )
     start = time.time()
     model.eval()
+    model.to(DEVICE)
     embeddings = np.zeros([args.batch_size*3, embedding_size])
-    for epoch in range(10):
+    for epoch in range(600000):
         print("epoch %d"%epoch)
-        dataset_train.reset(model)
+        dataset_train.reset(model, DEVICE)
         for inputs, labels in iter(train_loader):
             a = inputs[0]
             p = inputs[1]
@@ -254,7 +249,7 @@ if __name__=='__main__':
             n_label = labels[2]
             labels = torch.cat((a_label, p_label, n_label), 0)
             network_label = labels.to(DEVICE).long()
-            network_in = inputs.to(DEVICE).cpu()
+            network_in = inputs.to(DEVICE)
             features = model(network_in)
             features = F.normalize(features).detach()
 
@@ -263,15 +258,15 @@ if __name__=='__main__':
             negative = features[2*args.batch_size:3*args.batch_size,:]
             d_pos = (anchor - positive).pow(2).sum(1)
             d_neg = (anchor - negative).pow(2).sum(1)
-            dp = d_pos.numpy()
-            dn = d_neg.numpy()
+            dp = d_pos.cpu().numpy()
+            dn = d_neg.cpu().numpy()
 
             # print("average p_dist:", np.average(dp))
             # print("average n_dist:", np.average(dn))
            
-            inputs = inputs.numpy()
-            labels = labels.numpy()
-            features = features.numpy()
+            inputs = inputs.cpu().numpy()
+            labels = labels.cpu().numpy()
+            features = features.cpu().numpy()
             showBatch(inputs, labels, features, args.batch_size, show_y=3)
 
     print("10 epoch use time: %.2f s"%(time.time()-start))

@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=50)
-    parser.add_argument('--bag-size', type=int, default=4000)
+    parser.add_argument('--bag-size', type=int, default=50)
     parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
@@ -102,8 +102,8 @@ if __name__ == '__main__':
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.batch_size, shuffle=True, \
                                   pin_memory = True, num_workers = args.num_workers, drop_last = True )
 
-    NUM_CLASS = len(train_loader.dataset.classes)
-    print("Number of Training Classes: {}".format(NUM_CLASS))
+    # NUM_CLASS = len(train_loader.dataset.classes)
+    # print("Number of Training Classes: {}".format(NUM_CLASS))
     sys.stdout.flush()  
     if MULTI_GPU:   # multi-GPU setting
         BACKBONE = nn.DataParallel(BACKBONE, device_ids = GPU_ID)
