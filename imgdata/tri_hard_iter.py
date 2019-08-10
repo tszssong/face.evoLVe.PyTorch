@@ -64,6 +64,8 @@ class TripletHardImgData(data.Dataset):
         self.input_size = input_size
         self._cur = 0
         self.bag_seq = []
+        self.bag_img_seq = []
+        self.bag_lab_seq = []
         if use_list:
             samples = self._read_paths(self.root)
         else:
@@ -99,23 +101,23 @@ class TripletHardImgData(data.Dataset):
         return images 
 
     def __getitem__(self, index):
-        item = self.bag_seq[index]
-        a_idx, p_idx, n_idx = item
-        a_idx = a_idx + self._cur - self.bag_size
-        p_idx = p_idx + self._cur - self.bag_size
-        n_idx = n_idx + self._cur - self.bag_size
-        path, target = self.samples[a_idx]
-        positive_path, pos_label = self.samples[p_idx]
-        negative_path, neg_label = self.samples[n_idx]
-        img1 = pil_loader(path)
-        img2 = pil_loader(positive_path)
-        img3 = pil_loader(negative_path)
-        if self.transform is not None:
-            img1 = self.transform(img1)
-            img2 = self.transform(img2)
-            img3 = self.transform(img3)
-        return (img1, img2, img3), (target, pos_label, neg_label)
-        # return self.bag_imgs[index], self.bag_labels[index]
+        # item = self.bag_seq[index]
+        # a_idx, p_idx, n_idx = item
+        # a_idx = a_idx + self._cur - self.bag_size
+        # p_idx = p_idx + self._cur - self.bag_size
+        # n_idx = n_idx + self._cur - self.bag_size
+        # path, target = self.samples[a_idx]
+        # positive_path, pos_label = self.samples[p_idx]
+        # negative_path, neg_label = self.samples[n_idx]
+        # img1 = pil_loader(path)
+        # img2 = pil_loader(positive_path)
+        # img3 = pil_loader(negative_path)
+        # if self.transform is not None:
+        #     img1 = self.transform(img1)
+        #     img2 = self.transform(img2)
+        #     img3 = self.transform(img3)
+        # return (img1, img2, img3), (target, pos_label, neg_label)
+        return self.bag_img_seq[index], self.bag_lab_seq[index]
 
     #https://blog.csdn.net/Tan_HandSome/article/details/82501902
     def _get_dist(self, emb):
@@ -142,6 +144,8 @@ class TripletHardImgData(data.Dataset):
         _index = 0
         start = time.time()
         self.bag_seq = []
+        self.bag_img_seq = []
+        self.bag_lab_seq = []
         bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
         baglabel = torch.empty(self.bag_size, 1)
         while _index<self.bag_size:
@@ -183,11 +187,8 @@ class TripletHardImgData(data.Dataset):
             numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
             p_candidate = p_dist.argsort()[-numCandidate:]
             p_idx = np.random.choice( p_candidate )
-            # print(numCandidate)
-            # print( np.where(baglabel_1v==a_label) )
-            # print(p_candidate)
-            # p_idx = np.random.choice( np.where(baglabel_1v==a_label)[0] )
-            n_dist[ np.where(baglabel_1v==a_label) ] = 2048           #fill same ids with a bigNumber
+            #TODO: incase batch_size < class id images
+            n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
             numCandidate = int( max(1, self.bag_size*0.1) )
             # numCandidate = 1
             n_candidate = n_dist.argsort()[ :numCandidate ]    
@@ -195,6 +196,10 @@ class TripletHardImgData(data.Dataset):
             # print("dist after:", n_dist)
             # print("triplet find:", a_idx, p_idx, n_idx)
             self.bag_seq.append( (a_idx, p_idx, n_idx) )
+            self.bag_img_seq.append((bagdata[a_idx],bagdata[p_idx],bagdata[n_idx]))
+            self.bag_lab_seq.append( (int( baglabel_1v[a_idx] ), \
+                                      int( baglabel_1v[p_idx] ), \
+                                      int( baglabel_1v[n_idx] ) ) ) 
           
 
     def __len__(self):

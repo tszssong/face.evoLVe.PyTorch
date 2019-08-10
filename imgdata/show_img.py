@@ -37,7 +37,7 @@ def showBatch(inputs, labels, features=None, show_x=12, show_y=3):
             show_sample_img[y*im_width:(y+1)*im_width, 
                             x*im_heigh:(x+1)*im_heigh,:] = im
     cv2.imshow("sample", show_sample_img)
-    cv2.waitKey()                       
+    cv2.waitKey(1)                       
     # for b_idx in range(inputs.shape[0]):
     #     im = inputs[b_idx]
     #     label = labels[b_idx]
