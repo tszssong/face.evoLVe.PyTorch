@@ -115,7 +115,6 @@ if __name__ == '__main__':
     batch = 0   # batch index
     margin_count = 0
     for epoch in range(args.num_epoch): # start training process
-        start = time.time()
         for l_idx in range(len(lrStages)):
             if epoch == lrStages[l_idx]:
                 schedule_lr(OPTIMIZER)
@@ -125,6 +124,7 @@ if __name__ == '__main__':
 
         # for inputs, labels in tqdm(iter(train_loader)):
         dataset_train.reset(BACKBONE,DEVICE)
+        start = time.time()
         BACKBONE.train()  # set to training mode
         for inputs, labels in iter(train_loader):
             a = inputs[0]
