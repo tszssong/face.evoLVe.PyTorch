@@ -33,14 +33,14 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=120)
-    parser.add_argument('--bag-size', type=int, default=120)
+    parser.add_argument('--batch-size', type=int, default=50)
+    parser.add_argument('--bag-size', type=int, default=400)
     parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--num-epoch', type=int, default=1250000)
+    parser.add_argument('--num-epoch', type=int, default=100000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--disp_freq', type=int, default=1)
@@ -113,6 +113,7 @@ if __name__ == '__main__':
     
     #======= train & validation & save checkpoint =======#
     batch = 0   # batch index
+    margin_count = 0
     for epoch in range(args.num_epoch): # start training process
         start = time.time()
         for l_idx in range(len(lrStages)):
@@ -157,10 +158,15 @@ if __name__ == '__main__':
             batch += 1 # batch index
             
         # training statistics per epoch (buffer for visualization)
-        if(top1.avg > 0.98):
+        if(top1.avg > 0.95):
+            margin_count += 1
+        else:
+            margin_count = 0
+        if margin_count == 5:
             margin += 0.01
-            print("margin fixed to:", margin)
+            print("margin fixed to:", margin, "margin count:%d"%margin_count)
             sys.stdout.flush()
+            margin_count = 0
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
@@ -169,7 +175,7 @@ if __name__ == '__main__':
         print('Epoch: {}/{}\t'
             'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
             'Training Prec {top1.val:.3f} ({top1.avg:.3f})'.format(
-            epoch + 1, args.num_epoch, loss = losses, top1 = top1))
+            epoch + 1, args.num_epoch, loss = losses,top1 = top1))
         print("=" * 60)
         sys.stdout.flush() 
 
