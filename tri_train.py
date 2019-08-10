@@ -57,13 +57,11 @@ if __name__ == '__main__':
     MULTI_GPU = ( len(GPU_ID)>1 ) # flag to use multiple GPUs
   
     print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) )
-    print("=" * 60, "\nOverall Configurations:")
-    print(args)
+    print("=" * 60, "\nOverall Configurations:\n", args)
     
     BACKBONE = eval(args.backbone_name)(INPUT_SIZE)
-    print("=" * 60)
-    # print(BACKBONE)
-    print("{} Backbone Generated".format(args.backbone_name))
+    print("=" * 60, "\n", BACKBONE, "\n{} Backbone Generated".format(args.backbone_name),"\n","="*60)
+    
     if args.backbone_name.find("IR") >= 0:
         backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
     else:
@@ -82,9 +80,7 @@ if __name__ == '__main__':
     OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
                            {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
     
-    print(LOSS) 
-    print(OPTIMIZER)
-    print("=" * 60)
+    print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
     lfw, cfp_ff, cfp_fp, agedb, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, agedb_issame, calfw_issame, cplfw_issame, vgg2_fp_issame = get_val_data(args.data_root)
@@ -102,7 +98,6 @@ if __name__ == '__main__':
         transform=train_transform, use_list=True)
         
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
-
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.batch_size, shuffle=True, \
                                   pin_memory = True, num_workers = args.num_workers, drop_last = True )
 
@@ -117,8 +112,8 @@ if __name__ == '__main__':
     
     #======= train & validation & save checkpoint =======#
     batch = 0   # batch index
-    elasped = 0
     for epoch in range(args.num_epoch): # start training process
+        start = time.time()
         for l_idx in range(len(lrStages)):
             if epoch == lrStages[l_idx]:
                 schedule_lr(OPTIMIZER)
@@ -130,8 +125,6 @@ if __name__ == '__main__':
         dataset_train.reset(BACKBONE,DEVICE)
         BACKBONE.train()  # set to training mode
         for inputs, labels in iter(train_loader):
-            start = time.time()
-            
             a = inputs[0]
             p = inputs[1]
             n = inputs[2]
@@ -144,6 +137,7 @@ if __name__ == '__main__':
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
             outputs = BACKBONE(inputs)
+            # show batch data: only on ubuntu
             if hostname=="ubuntu-System-Product-Name":
                 features = F.normalize(outputs).detach()
                 showBatch(inputs.cpu().numpy(), labels.cpu().numpy(), features.cpu().numpy(), args.batch_size)
@@ -155,31 +149,18 @@ if __name__ == '__main__':
            
             losses.update(loss.data.item(), inputs.size(0))
             top1.update(prec, inputs.size(0))
-            
             # compute gradient and do SGD step
             OPTIMIZER.zero_grad()
             loss.backward()
             OPTIMIZER.step()
-            # dispaly training loss & acc every DISP_FREQ
-            if ((batch + 1) % args.disp_freq == 0) and batch != 0:
-                print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(elasped/args.disp_freq) )
-                elasped = 0
-                print('Epoch {}/{} Batch {}/{}\t'
-                      'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Training Prec {top1.val:.3f} ({top1.avg:.3f})'.format(
-                       epoch + 1, args.num_epoch, batch + 1, len(train_loader) * args.num_epoch, loss = losses, top1 = top1))
-                print("=" * 60)
-                sys.stdout.flush()
-
             batch += 1 # batch index
-            end = time.time() - start
-            elasped = elasped + end
+            
         # training statistics per epoch (buffer for visualization)
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
         writer.add_scalar("Training_Accuracy", epoch_acc, epoch + 1)
-        print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) )
+        print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), "%.3f s/epoch"%(time.time()-start) )
         print('Epoch: {}/{}\t'
             'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
             'Training Prec {top1.val:.3f} ({top1.avg:.3f})'.format(

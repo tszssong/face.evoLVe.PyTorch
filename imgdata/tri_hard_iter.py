@@ -121,7 +121,6 @@ class TripletHardImgData(data.Dataset):
     #https://blog.csdn.net/Tan_HandSome/article/details/82501902
     def _get_dist(self, emb):
         vecProd = np.dot(emb, emb.transpose())
-        print(vecProd.shape)
         sqr_emb = emb**2
         sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
         ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
@@ -137,7 +136,6 @@ class TripletHardImgData(data.Dataset):
    
 
     def reset(self, model=None, device="cpu"):
-        print("data loader reset")
         model.eval()
         model.to(device)
         if self._cur + self.bag_size > len(self.samples):
@@ -154,9 +152,7 @@ class TripletHardImgData(data.Dataset):
             bagdata[_index] = img
             baglabel[_index] = _target
             _index = _index + 1
-            # print(_index + self._cur, end=' '), 
-            sys.stdout.flush()
-        print("bag data ready:", bagdata.size(), baglabel.size())
+            
         self._cur += self.bag_size
         features = model( bagdata.to(device) )
         features = F.normalize(features).detach().cpu()
@@ -164,7 +160,7 @@ class TripletHardImgData(data.Dataset):
         dist_matrix = self._get_dist(features.numpy())
         start = time.time()
         np.set_printoptions(suppress=True)
-        print("cal distance use time: %.6f s"%(time.time()-start))
+        print("dataLoader reset:", bagdata.size(), "distMatric use time: %.6f ms"%((time.time()-start)*1000))
         sys.stdout.flush()
         assert dist_matrix.shape[0] == self.bag_size
         baglabel_1v = baglabel.view(baglabel.shape[0]).numpy()
