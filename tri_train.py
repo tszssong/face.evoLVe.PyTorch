@@ -33,8 +33,8 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=50)
-    parser.add_argument('--bag-size', type=int, default=50)
+    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--bag-size', type=int, default=512)
     parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
@@ -160,13 +160,20 @@ if __name__ == '__main__':
         # training statistics per epoch (buffer for visualization)
         if(top1.avg > 0.95):
             margin_count += 1
-        else:
-            margin_count = 0
+        elif(top1.avg < 0.85)and (margin>0.1):
+            margin_count -= 1
+            
         if margin_count == 5:
             margin += 0.01
             print("margin fixed to:", margin, "margin count:%d"%margin_count)
             sys.stdout.flush()
             margin_count = 0
+        elif margin_count == -5 and margin>0.1:
+            margin -= 0.01
+            print("margin fixed to:", margin, "margin count:%d"%margin_count)
+            sys.stdout.flush()
+            margin_count = 0
+
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
