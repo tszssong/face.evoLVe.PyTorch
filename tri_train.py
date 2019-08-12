@@ -158,21 +158,21 @@ if __name__ == '__main__':
             batch += 1 # batch index
             
         # training statistics per epoch (buffer for visualization)
-        if(top1.avg > 0.95):
-            margin_count += 1
-        elif(top1.avg < 0.85)and (margin>0.1):
-            margin_count -= 1
+        # if(top1.avg > 0.95):
+        #     margin_count += 1
+        # elif(top1.avg < 0.85)and (margin>0.1):
+        #     margin_count -= 1
             
-        if margin_count == 5:
-            margin += 0.01
-            print("margin fixed to:", margin, "margin count:%d"%margin_count)
-            sys.stdout.flush()
-            margin_count = 0
-        elif margin_count == -5 and margin>0.1:
-            margin -= 0.01
-            print("margin fixed to:", margin, "margin count:%d"%margin_count)
-            sys.stdout.flush()
-            margin_count = 0
+        # if margin_count == 5:
+        #     margin += 0.01
+        #     print("margin fixed to:", margin, "margin count:%d"%margin_count)
+        #     sys.stdout.flush()
+        #     margin_count = 0
+        # elif margin_count == -5 and margin>0.1:
+        #     margin -= 0.01
+        #     print("margin fixed to:", margin, "margin count:%d"%margin_count)
+        #     sys.stdout.flush()
+        #     margin_count = 0
 
         epoch_loss = losses.avg
         epoch_acc = top1.avg
