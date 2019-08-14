@@ -13,9 +13,8 @@ sys.path.append( os.path.join( os.path.dirname(__file__),'../imgdata/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
 from show_img import showBatch
 import multiprocessing
+from multiprocessing import Process, Manager, Lock
 # muxlock = multiprocessing.Lock()
-
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 def pil_loader(path):
     with open(path, 'rb') as f:
@@ -26,37 +25,12 @@ def jpeg4py_loader(path):
         img = jpeg.JPEG(f).decode()
         return Image.fromarray(img)  #TODO: torchvison transpose use PIL img
 
-def has_file_allowed_extension(filename, extensions):
-    return filename.lower().endswith(extensions)
-
-def is_image_file(filename):
-    return has_file_allowed_extension(filename, IMG_EXTENSIONS)
-
-def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
-    images = []
-    dir = os.path.expanduser(dir)
-    if not ((extensions is None) ^ (is_valid_file is None)):
-        raise ValueError("Both extensions and is_valid_file cannot be None or not None at the same time")
-    if extensions is not None:
-        def is_valid_file(x):
-            return has_file_allowed_extension(x, extensions)
-    for target in sorted(class_to_idx.keys()):
-        d = os.path.join(dir, target)
-        if not os.path.isdir(d):
-            continue
-        for root, _, fnames in sorted(os.walk(d)):
-            for fname in sorted(fnames):
-                path = os.path.join(root, fname)
-                if is_valid_file(path):
-                    item = (path, class_to_idx[target])
-                    images.append(item)
-    return images
 
 class TripletHardImgData(data.Dataset):
     def __init__(self, root, model, \
                  batch_size, bag_size, input_size, \
                  transform=None, target_transform=None, \
-                 number_workers = 2, use_list = True):
+                 number_workers = 3, use_list = True):
         super(TripletHardImgData, self).__init__()
         print("triplet hard image dataloader inited")
         self.root = root
@@ -70,16 +44,11 @@ class TripletHardImgData(data.Dataset):
         self.bag_img_seq = []
         self.bag_lab_seq = []
         self.n_workers = number_workers
+        self._inited = False
         if use_list:
             samples = self._read_paths(self.root)
         else:
-            classes, class_to_idx = self._find_classes(self.root)
-            samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
-            if len(samples) == 0:
-                raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
-                                    "Supported extensions are: " + ",".join(extensions)))
-            self.class_to_idx = class_to_idx
-            self.classes = classes
+            print("not support now!")
         # random.shuffle(samples)
         self.samples = samples                #samples is a list like below:
         start = time.time()
@@ -88,16 +57,8 @@ class TripletHardImgData(data.Dataset):
         self.targets = [s[1] for s in samples] # targets is a list with ids
         # print( "shuffle %d samples used time: %.2f s"%(len(self.samples), time.time()-start) )
         sys.stdout.flush()
-        self.reset(self.model)
+        # self.reset(self.model)
 
-    def _find_classes(self, dir):
-        if sys.version_info >= (3, 5):   # Faster and available in Python 3.5 and above
-            classes = [d.name for d in os.scandir(dir) if d.is_dir()]
-        else:
-            classes = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
-        classes.sort()
-        class_to_idx = {classes[i]: i for i in range(len(classes))}
-        return classes, class_to_idx
 
     def _read_paths(self, path):
         images = []
@@ -111,6 +72,11 @@ class TripletHardImgData(data.Dataset):
     def __getitem__(self, index):
         return self.bag_img_seq[index], self.bag_lab_seq[index]
 
+    def __len__(self):
+        if( self._inited ):
+            return len(self.bag_img_seq)
+        else:
+            return len(self.samples)
     #https://blog.csdn.net/Tan_HandSome/article/details/82501902
     def _get_dist(self, emb):
         vecProd = np.dot(emb, emb.transpose())
@@ -141,11 +107,14 @@ class TripletHardImgData(data.Dataset):
         q_in = [[]for i in range(self.n_workers)]
         for idx in range(self.bag_size):
             q_in[idx%len(q_in)].append(bag_samples[idx])
+        
         with multiprocessing.Manager() as MG:
-            p_img = [MG.list() for i in range(self.n_workers)]
-            p_lab = [MG.list() for i in range(self.n_workers)]
-            loaders = [ multiprocessing.Process( target = self._load_func, \
-                args=(q_in[i], p_img[i], p_lab[i], ) ) for i in range(self.n_workers) ]
+            p_img = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
+            p_lab = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
+            loaders = [ multiprocessing.Process( target =self._load_func, \
+                args=(q_in[i], p_img[i], p_lab[i] ) ) for i in range(self.n_workers) ]
+        
+        lock = Lock()
         for p in loaders:
             p.start()
         for p in loaders:
@@ -153,11 +122,11 @@ class TripletHardImgData(data.Dataset):
         l_img = []
         l_label = []
         print(len(p_img), len(p_lab))
-        for img in p_img:
+        for imgs in p_img:
             # print(len(img))
-            l_img.extend(img)
-        for label in p_lab:
-            l_label.extend(label)
+            l_img.extend(imgs)
+        for labels in p_lab:
+            l_label.extend(labels)
         # print(len(l_img), len(l_label))
         for idx in range(len(l_img)):
             bagdata[idx] = l_img[idx]
@@ -175,6 +144,7 @@ class TripletHardImgData(data.Dataset):
             plabel.append(target)
         
     def reset(self, model=None, device="cpu"):
+        self._inited = True
         model.eval()
         model.to(device)
         start = time.time()
@@ -228,9 +198,6 @@ class TripletHardImgData(data.Dataset):
                                       int( baglabel_1v[n_idx] ) ) ) 
           
 
-    def __len__(self):
-        return len(self.bag_img_seq)
-        # return len(self.samples)
 
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
