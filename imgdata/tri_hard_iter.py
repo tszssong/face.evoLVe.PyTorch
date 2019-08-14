@@ -12,6 +12,9 @@ sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
 sys.path.append( os.path.join( os.path.dirname(__file__),'../imgdata/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
 from show_img import showBatch
+import multiprocessing
+# muxlock = multiprocessing.Lock()
+
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 def pil_loader(path):
@@ -52,7 +55,8 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
 class TripletHardImgData(data.Dataset):
     def __init__(self, root, model, \
                  batch_size, bag_size, input_size, \
-                 transform=None, target_transform=None, use_list = True):
+                 transform=None, target_transform=None, \
+                 number_workers = 2, use_list = True):
         super(TripletHardImgData, self).__init__()
         print("triplet hard image dataloader inited")
         self.root = root
@@ -65,6 +69,7 @@ class TripletHardImgData(data.Dataset):
         self._cur = 0
         self.bag_img_seq = []
         self.bag_lab_seq = []
+        self.n_workers = number_workers
         if use_list:
             samples = self._read_paths(self.root)
         else:
@@ -121,7 +126,8 @@ class TripletHardImgData(data.Dataset):
         ed = np.sqrt(sq_ed)
 
         return np.asarray(ed)
-   
+    # def _load_img   
+
     def _get_bag(self):
         bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
         baglabel = torch.empty(self.bag_size, 1)
@@ -130,18 +136,44 @@ class TripletHardImgData(data.Dataset):
             self._cur = 0    # not enough for a bag
             # random.shuffle(self.samples)
             # self.targets = [s[1] for s in samples]
-        while index<self.bag_size:
-            path, target = self.samples[index + self._cur]
+        self._cur += self.bag_size
+        bag_samples = self.samples[self._cur:self._cur+self.bag_size]
+        q_in = [[]for i in range(self.n_workers)]
+        for idx in range(self.bag_size):
+            q_in[idx%len(q_in)].append(bag_samples[idx])
+        with multiprocessing.Manager() as MG:
+            p_img = [MG.list() for i in range(self.n_workers)]
+            p_lab = [MG.list() for i in range(self.n_workers)]
+            loaders = [ multiprocessing.Process( target = self._load_func, \
+                args=(q_in[i], p_img[i], p_lab[i], ) ) for i in range(self.n_workers) ]
+        for p in loaders:
+            p.start()
+        for p in loaders:
+            p.join() 
+        l_img = []
+        l_label = []
+        print(len(p_img), len(p_lab))
+        for img in p_img:
+            # print(len(img))
+            l_img.extend(img)
+        for label in p_lab:
+            l_label.extend(label)
+        # print(len(l_img), len(l_label))
+        for idx in range(len(l_img)):
+            bagdata[idx] = l_img[idx]
+            baglabel[idx] = l_label[idx]       
+        return bagdata, baglabel
+        # return
+    def _load_func(self, qin, pimg, plabel):  
+        for item in qin:
+            path, target = item
+            print(path, target)
             img = pil_loader(path)
             if self.transform is not None:
                 img = self.transform(img)
-            bagdata[index] = img
-            baglabel[index] = target
-            index = index + 1
-        self._cur += self.bag_size
+            pimg.append(img)
+            plabel.append(target)
         
-        return bagdata, baglabel
-
     def reset(self, model=None, device="cpu"):
         model.eval()
         model.to(device)
@@ -175,9 +207,8 @@ class TripletHardImgData(data.Dataset):
             n_dist = dist_matrix[a_idx]
             a_label = baglabel_1v[a_idx]
             
-            # TODO:  skip 1 img/id
             if(np.sum(baglabel_1v==a_label) == 1):
-                p_idx = a_idx
+                p_idx = a_idx       # TODO: only 1 img/id
             else:
                 p_dist[np.where(baglabel_1v!=a_label)] = 0
                 numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
@@ -208,7 +239,7 @@ if __name__=='__main__':
     parser.add_argument('--batch-size', type=int, default=12)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--bag-size', type=int, default=120)
+    parser.add_argument('--bag-size', type=int, default=12)
     args = parser.parse_args()
     im_width = args.image_size[0]
     im_heigh = args.image_size[1]
