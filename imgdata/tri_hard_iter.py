@@ -120,14 +120,12 @@ class TripletHardImgData(data.Dataset):
         for p in loaders:
             p.join() 
         l_img = []
-        l_label = []
-        print(len(p_img), len(p_lab))
+        l_label = [] 
         for imgs in p_img:
             # print(len(img))
             l_img.extend(imgs)
         for labels in p_lab:
-            l_label.extend(labels)
-        # print(len(l_img), len(l_label))
+            l_label.extend(labels) 
         for idx in range(len(l_img)):
             bagdata[idx] = l_img[idx]
             baglabel[idx] = l_label[idx]       
@@ -135,8 +133,7 @@ class TripletHardImgData(data.Dataset):
         # return
     def _load_func(self, qin, pimg, plabel):  
         for item in qin:
-            path, target = item
-            print(path, target)
+            path, target = item 
             img = pil_loader(path)
             if self.transform is not None:
                 img = self.transform(img)
