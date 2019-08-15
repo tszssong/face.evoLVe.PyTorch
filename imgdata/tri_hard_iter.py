@@ -35,7 +35,7 @@ class TripletHardImgData(data.Dataset):
     def __init__(self, root, model, \
                  batch_size, bag_size, input_size, \
                  transform=None, target_transform=None, \
-                 number_workers = 4, use_list = True):
+                 n_workers = 4, use_list = True):
         super(TripletHardImgData, self).__init__()
         print("triplet hard image dataloader inited")
         self.root = root
@@ -48,9 +48,7 @@ class TripletHardImgData(data.Dataset):
         self._cur = 0
         self.bag_img_seq = []
         self.bag_lab_seq = []
-        self.bag_data = []
-        self.bag_target = []
-        self.n_workers = number_workers
+        self.n_workers = n_workers
         self._inited = False
         if use_list:
             samples = self._read_paths(self.root)
@@ -95,15 +93,15 @@ class TripletHardImgData(data.Dataset):
         return np.asarray(ed)
     
     def _get_bag(self):
-        
-        del self.bag_data[:]
-        del self.bag_target[:]  
+        bag_image = []
+        bag_target = []  
         if self._cur + self.bag_size > len(self.samples):
             self._cur = 0    # not enough for a bag
             # random.shuffle(self.samples)
             # self.targets = [s[1] for s in samples]
         bag_samples = self.samples[self._cur:self._cur+self.bag_size]
         self._cur += self.bag_size
+
         q_in = [[]for i in range(self.n_workers)]
         for idx in range(self.bag_size):
             q_in[idx%len(q_in)].append(bag_samples[idx])
@@ -120,25 +118,15 @@ class TripletHardImgData(data.Dataset):
             p.join() 
             
         for imgs in p_img:
-            self.bag_data.extend(imgs)
+            bag_image.extend(imgs)
         for labels in p_lab:
-            self.bag_target.extend(labels)
-        # del p_img[:]
-        # del p_lab[:]     
+            bag_target.extend(labels)
+        return bag_image, bag_target
 
     def _load_func(self, qin, pimg, plabel):  
         for item in qin:
             path, target = item 
-            img = pil_loader(path)  
-            img = np.asarray(img)
-            # img = cv2.imread(path) 
-            # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)     
-            # if self.transform is not None:
-            #     img = self.transform(img)
-            img = img.transpose((2,0,1)).astype(np.float32)
-            img -=128
-            img /= 127.5
-            img = torch.from_numpy(img)
+            img = pil_loader(path) 
             pimg.append(img)
             plabel.append(int(target) )
 
@@ -147,31 +135,32 @@ class TripletHardImgData(data.Dataset):
         model.eval()
         model.to(device)
         start = time.time()
-        self._get_bag()
+        bagImgs, bagTargets = self._get_bag()
         # if(np.where(baglabel==baglabel[0])[0].size == baglabel.size(0))
-        print("loadImg time: %.6f s"%((time.time()-start)), end=' ')    
-        start = time.time()
+        print("loadImg: %.4f s"%((time.time()-start)), end=' ')    
+        bagTensor = torch.empty(self.bag_size, 3, 112, 112)
+        for i in range(self.bag_size):
+            img = bagImgs[i]
+            bagTensor[i] = self.transform(img)
+        print("transform: %.4f s"%((time.time()-start)), end=' ')
         # features = torch.empty(self.bag_size, self.embedding_size)
         features = torch.empty(self.bag_size, 512)
         for idx in range(int(self.bag_size/self.batch_size)):
-            batch_img = self.bag_data[idx*self.batch_size:(idx+1)*self.batch_size]
-            batch_tensor = torch.empty(self.batch_size, 3, 112, 112)
-            for i in range(self.batch_size):
-                batch_tensor[i] = batch_img[i]
+            batch_tensor= bagTensor[idx*self.batch_size:(idx+1)*self.batch_size, :]
             fea = model(batch_tensor.to(device))
             fea = F.normalize(fea).detach()
             features[ idx*self.batch_size:(idx+1)*self.batch_size,: ] = fea
         features.cpu()
-        print("getFeature time: %.6f s"%((time.time()-start))) 
+        print("getFeature: %.4f s"%((time.time()-start))) 
         start = time.time()
         dist_matrix = torch.empty(self.bag_size, self.bag_size)
         dist_matrix = self._get_dist(features.numpy())
         np.set_printoptions(suppress=True)
-        print("dataLoader reset:", len(self.bag_data), "distMatric use time: %.6f s"%((time.time()-start)))
+        print("dataLoader reset:", len(bagTargets), "distMatric: %.6f s"%((time.time()-start)))
         sys.stdout.flush()
         assert dist_matrix.shape[0] == self.bag_size
         # baglabel_1v = self.bag_target.view(self.bag_target.shape[0]).numpy().astype(np.int32)
-        baglabel_1v = np.array(self.bag_target, dtype=np.int32)
+        baglabel_1v = np.array(bagTargets, dtype=np.int32)
         for a_idx in range( self.bag_size ):
             p_dist = dist_matrix[a_idx].copy()
             n_dist = dist_matrix[a_idx]
@@ -192,7 +181,7 @@ class TripletHardImgData(data.Dataset):
             n_idx = np.random.choice(n_candidate)
             # print("dist after:", n_dist)
             # print("triplet find:", a_idx, p_idx, n_idx)
-            self.bag_img_seq.append((self.bag_data[a_idx],self.bag_data[p_idx],self.bag_data[n_idx]))
+            self.bag_img_seq.append((bagTensor[a_idx],bagTensor[p_idx],bagTensor[n_idx]))
             self.bag_lab_seq.append( (int( baglabel_1v[a_idx] ), \
                                       int( baglabel_1v[p_idx] ), \
                                       int( baglabel_1v[n_idx] ) ) ) 
@@ -203,10 +192,11 @@ if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description='triplet image iter')
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img/')
-    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--batch-size', type=int, default=12)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--bag-size', type=int, default=8192)
+    parser.add_argument('--bag-size', type=int, default=120)
+    parser.add_argument('--load-workers', type=int, default=4)
     args = parser.parse_args()
     im_width = args.image_size[0]
     im_heigh = args.image_size[1]
@@ -219,11 +209,18 @@ if __name__=='__main__':
         model.load_state_dict(torch.load(args.model_path))
     else:
         print("model file does not exists!!!")
-
+    
+    train_transform = transforms.Compose([ 
+        transforms.Resize([128, 128]),     # smaller side resized
+        transforms.RandomCrop([112, 112]),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
+    ])
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, \
                     batch_size = args.batch_size, bag_size = args.bag_size, input_size = [112,112], \
-                    use_list=True)
+                    transform= train_transform, number_workers = 2, use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
