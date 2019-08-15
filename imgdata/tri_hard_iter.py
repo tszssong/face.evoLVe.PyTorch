@@ -211,8 +211,6 @@ if __name__=='__main__':
         print("model file does not exists!!!")
     
     train_transform = transforms.Compose([ 
-        transforms.Resize([128, 128]),     # smaller side resized
-        transforms.RandomCrop([112, 112]),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
@@ -220,7 +218,7 @@ if __name__=='__main__':
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, \
                     batch_size = args.batch_size, bag_size = args.bag_size, input_size = [112,112], \
-                    transform= train_transform, number_workers = 2, use_list=True)
+                    transform= train_transform, n_workers = args.load_workers, use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
