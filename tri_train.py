@@ -19,12 +19,13 @@ from tqdm import tqdm
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.show_img import showBatch
+torch.multiprocessing.set_sharing_strategy('file_system')
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100')
+    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
     parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=128)
-    parser.add_argument('--bag-size', type=int, default=512)
+    parser.add_argument('--bag-size', type=int, default=8192)
     parser.add_argument('--margin', type=float, default=0.2)
     parser.add_argument('--lr', type=float, default=0.05)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")

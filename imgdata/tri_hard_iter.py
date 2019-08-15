@@ -16,7 +16,7 @@ import multiprocessing
 from multiprocessing import Lock, Process
 import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
+resource.setrlimit(resource.RLIMIT_NOFILE, (327680, rlimit[1]))
 def pil_loader(path):
     with open(path, 'rb') as f:
         img = Image.open(f)
@@ -58,9 +58,9 @@ class TripletHardImgData(data.Dataset):
             print("no longer support now!")
         
         self.samples = samples                #samples is a list like below:
-        start = time.time()
-        # random.shuffle(self.samples)
         # #[(path1,id1),(path2,id1),(path3,id1), (path4,id2),(path5,id2).....]
+        start = time.time()
+        random.shuffle(self.samples)
         self.targets = [s[1] for s in samples] # targets is a list with ids
         # print( "shuffle %d samples used time: %.2f s"%(len(self.samples), time.time()-start) )
         sys.stdout.flush()
@@ -68,8 +68,7 @@ class TripletHardImgData(data.Dataset):
     def _read_paths(self, path):
         images = []
         with open(path, 'r') as fp:
-            lines = fp.readlines()
-            for line in lines:
+            for line in fp.readlines():
                 [path, id] = line.strip().split(' ')
                 images.append( ( path, int(id) ) )    # match torchvison Folder fomat 
         return images 
@@ -78,10 +77,8 @@ class TripletHardImgData(data.Dataset):
         return self.bag_img_seq[index], self.bag_lab_seq[index]
 
     def __len__(self):
-        if( self._inited ):
-            return len(self.bag_img_seq)
-        else:
-            return len(self.samples)
+        if( self._inited ): return len(self.bag_img_seq)
+        else: return len(self.samples)
 
     #https://blog.csdn.net/Tan_HandSome/article/details/82501902
     def _get_dist(self, emb):
@@ -89,14 +86,12 @@ class TripletHardImgData(data.Dataset):
         sqr_emb = emb**2
         sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
         ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
-
         sqr_et = emb**2
         sum_sqr_et = np.sum(sqr_et, axis=1)
         ex_sum_sqr_et = np.tile(sum_sqr_et, (vecProd.shape[0], 1))
         sq_ed = ex_sum_sqr_emb + ex_sum_sqr_et - 2*vecProd
         sq_ed[sq_ed<0] = 0.0
         ed = np.sqrt(sq_ed)
-
         return np.asarray(ed)
     
     def _get_bag(self):
@@ -107,17 +102,17 @@ class TripletHardImgData(data.Dataset):
             self._cur = 0    # not enough for a bag
             # random.shuffle(self.samples)
             # self.targets = [s[1] for s in samples]
-        self._cur += self.bag_size
         bag_samples = self.samples[self._cur:self._cur+self.bag_size]
+        self._cur += self.bag_size
         q_in = [[]for i in range(self.n_workers)]
         for idx in range(self.bag_size):
             q_in[idx%len(q_in)].append(bag_samples[idx])
         
-        # with multiprocessing.Manager() as MG:
-        p_img = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
-        p_lab = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
-        loaders = [ Process( target =self._load_func, \
-            args=(q_in[i], p_img[i], p_lab[i] ) ) for i in range(self.n_workers) ]
+        with multiprocessing.Manager() as MG:
+            p_img = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
+            p_lab = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
+            loaders = [ Process( target =self._load_func, \
+                args=(q_in[i], p_img[i], p_lab[i] ) ) for i in range(self.n_workers) ]
         
         for p in loaders:
             p.start()
@@ -128,25 +123,22 @@ class TripletHardImgData(data.Dataset):
             self.bag_data.extend(imgs)
         for labels in p_lab:
             self.bag_target.extend(labels)
-        del p_img[:]
-        del p_lab[:]     
+        # del p_img[:]
+        # del p_lab[:]     
 
     def _load_func(self, qin, pimg, plabel):  
         for item in qin:
             path, target = item 
-            # img = pil_loader(path)  
-            # img = np.asarray(img)
-            img = cv2.imread(path) 
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)     
+            img = pil_loader(path)  
+            img = np.asarray(img)
+            # img = cv2.imread(path) 
+            # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)     
             # if self.transform is not None:
             #     img = self.transform(img)
-            img = img.transpose((2,0,1))
-            img = img.astype(np.float32)
+            img = img.transpose((2,0,1)).astype(np.float32)
             img -=128
             img /= 127.5
             img = torch.from_numpy(img)
-            # img = torch.empty(3,112,112)
-            # print(os.getpid(), img.size(), img.dtype)
             pimg.append(img)
             plabel.append(int(target) )
 
@@ -211,10 +203,10 @@ if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description='triplet image iter')
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img/')
-    parser.add_argument('--batch-size', type=int, default=12)
+    parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--image-size', default=[112, 112])
     parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--bag-size', type=int, default=120)
+    parser.add_argument('--bag-size', type=int, default=8192)
     args = parser.parse_args()
     im_width = args.image_size[0]
     im_heigh = args.image_size[1]
@@ -228,18 +220,10 @@ if __name__=='__main__':
     else:
         print("model file does not exists!!!")
 
-    train_transform = transforms.Compose([ 
-        transforms.Resize([112,112]), # smaller side resized
-        transforms.RandomCrop([ im_width, im_heigh ]),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] ),
-    ])
-    
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, \
                     batch_size = args.batch_size, bag_size = args.bag_size, input_size = [112,112], \
-                    transform=train_transform, use_list=True)
+                    use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, sampler = None,
