@@ -130,18 +130,18 @@ class TripletHardImgData(data.Dataset):
         bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
         baglabel = torch.empty(self.bag_size, 1)
         index = 0
-        if self._cur + self.bag_size > len(self.samples):
-            self._cur = 0    # not enough for a bag
+        # if self._cur + self.bag_size > len(self.samples):
+        #     self._cur = 0    # not enough for a bag
             
-        while index<self.bag_size:
-            path, target = self.samples[index + self._cur]
-            img = pil_loader(path)
-            if self.transform is not None:
-                img = self.transform(img)
-            bagdata[index] = img
-            baglabel[index] = target
-            index = index + 1
-        self._cur += self.bag_size
+        # while index<self.bag_size:
+        #     path, target = self.samples[index + self._cur]
+        #     img = pil_loader(path)
+        #     if self.transform is not None:
+        #         img = self.transform(img)
+        #     bagdata[index] = img
+        #     baglabel[index] = target
+        #     index = index + 1
+        # self._cur += self.bag_size
         
         start = time.time()
         bag = []
@@ -169,6 +169,12 @@ class TripletHardImgData(data.Dataset):
         for imgs in p_tuple:
             bag.extend(imgs)
         print("gather:%.4f"%(time.time()-start) )
+        for idx in range(len(bag)):
+            img, label = bag[idx]
+            if self.transform is not None:
+                img = self.transform(img)
+            bagdata[idx] = img
+            baglabel[idx] = label
         return bagdata, baglabel
 
     def reset(self, model=None, device="cpu"):
