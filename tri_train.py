@@ -44,8 +44,9 @@ if __name__ == '__main__':
     parser.add_argument('--num-epoch', type=int, default=100000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
-    parser.add_argument('--disp_freq', type=int, default=1)
-    parser.add_argument('--test_epoch', type=int, default=2000)
+    parser.add_argument('--disp-freq', type=int, default=1)
+    parser.add_argument('--test-epoch', type=int, default=2000)
+    parser.add_argument('--num-loaders', type=int, default=0)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
     margin = args.margin
@@ -62,7 +63,7 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     
     BACKBONE = eval(args.backbone_name)(INPUT_SIZE)
-    print("=" * 60, "\n", BACKBONE, "\n{} Backbone Generated".format(args.backbone_name),"\n","="*60)
+    # print("=" * 60, "\n", BACKBONE, "\n{} Backbone Generated".format(args.backbone_name),"\n","="*60)
     
     if args.backbone_name.find("IR") >= 0:
         backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
@@ -97,7 +98,7 @@ if __name__ == '__main__':
 
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), BACKBONE, \
         batch_size = args.batch_size, bag_size = args.bag_size, input_size = INPUT_SIZE,\
-        transform=train_transform, use_list=True)
+        transform=train_transform, n_workers=args.num_loaders, embedding_size=args.embedding_size)
         
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.batch_size, shuffle=True, \
@@ -158,23 +159,6 @@ if __name__ == '__main__':
             OPTIMIZER.step()
             batch += 1 # batch index
             
-        # training statistics per epoch (buffer for visualization)
-        # if(top1.avg > 0.95):
-        #     margin_count += 1
-        # elif(top1.avg < 0.85)and (margin>0.1):
-        #     margin_count -= 1
-            
-        # if margin_count == 5:
-        #     margin += 0.01
-        #     print("margin fixed to:", margin, "margin count:%d"%margin_count)
-        #     sys.stdout.flush()
-        #     margin_count = 0
-        # elif margin_count == -5 and margin>0.1:
-        #     margin -= 0.01
-        #     print("margin fixed to:", margin, "margin count:%d"%margin_count)
-        #     sys.stdout.flush()
-        #     margin_count = 0
-
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
