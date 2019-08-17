@@ -214,7 +214,7 @@ if __name__ == '__main__':
             bag_acc = acc.avg
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
-            print( "epoch:",epoch, time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), "%.3f s/bag"%(time.time()-start) )
+            print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), "%.3f s/bag"%(time.time()-start) )
             print('Epoch: {}/{} Bag: {} Batch: {} \t'
                 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                 'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(
@@ -223,9 +223,9 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_bag==0 and bagIdx!=0):
-            #     # perform validation & save checkpoints per epoch
                 print("=" * 60, "\nPerform Evaluation on CFP_FP AgeDB, and Save Checkpoints...")
                 sys.stdout.flush() 
+                accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
                 buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
                 accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
                 buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)

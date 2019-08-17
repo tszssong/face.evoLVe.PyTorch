@@ -13,8 +13,7 @@ sys.path.append( os.path.join( os.path.dirname(__file__),'../imgdata/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
 from show_img import showBatch
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
-import multiprocessing
-from multiprocessing import Lock, Process
+
 def pil_loader(path):
     with open(path, 'rb') as f:
         img = Image.open(f)
@@ -96,131 +95,8 @@ class TripletHardImgData(data.Dataset):
         if self.transform is not None:
             img = self.transform(img)
         return img, int(target)
-        # return self.bag_img_seq[index], self.bag_lab_seq[index]
-
-    
-
-    def _load_func(self, qin, pout):  
-        for item in qin:
-            path, target = item 
-            img = pil_loader(path) 
-            # if self.transform is not None:
-            #     img = self.transform(img)
-            pout.append( (img, int(target)) )
-
-    def _get_bag(self):
-        bagdata = torch.empty(self.bag_size, 3, self.input_size[0], self.input_size[1])
-        baglabel = torch.empty(self.bag_size, 1)
-        index = 0
-        # if self._cur + self.bag_size > len(self.samples):
-        #     self._cur = 0    # not enough for a bag
-            
-        # while index<self.bag_size:
-        #     path, target = self.samples[index + self._cur]
-        #     img = pil_loader(path)
-        #     if self.transform is not None:
-        #         img = self.transform(img)
-        #     bagdata[index] = img
-        #     baglabel[index] = target
-        #     index = index + 1
-        # self._cur += self.bag_size
         
-        start = time.time()
-        bag = []
-        if (self._cur + self.bag_size) > len(self.samples) :
-            self._cur = 0    # not enough for a bag
-        bag_samples = self.samples[self._cur:self._cur+self.bag_size]
-        self._cur += self.bag_size
-       
-        q_in = [[]for i in range(self.n_workers)]
-        length = self.bag_size/self.n_workers
-        for idx in range(self.bag_size):
-            q_in[idx%len(q_in)].append(bag_samples[idx])
-        with multiprocessing.Manager() as MG:
-            p_tuple = [ multiprocessing.Manager().list() for i in range(self.n_workers) ]
-            loaders = [ Process( target =self._load_func, \
-                args=(q_in[i], p_tuple[i] ) ) for i in range(self.n_workers) ]
-        print("sep:%.4f"%(time.time()-start), end=' ' )
-        
-        start = time.time()
-        for p in loaders: p.start()
-        for p in loaders: p.join() 
-        print("load:%.4f"%(time.time()-start), end=' ' )
-
-        start = time.time()
-        for imgs in p_tuple:
-            bag.extend(imgs)
-        print("gather:%.4f"%(time.time()-start), end=' '  )
-        start = time.time()
-        for idx in range(len(bag)):
-            img, label = bag[idx]
-            if self.transform is not None:
-                img = self.transform(img)
-            bagdata[idx] = img
-            baglabel[idx] = label
-        print("transfer:%.4f"%(time.time()-start))
-        return bagdata, baglabel
-
-    def reset(self, model=None, device="cpu"):
-        self.reseted = True
-        model.eval()
-        model.to(device)
-        start = time.time()
-        self.bag_img_seq = []
-        self.bag_lab_seq = []
-        bagdata, baglabel = self._get_bag()
-        # if(np.where(baglabel==baglabel[0])[0].size == baglabel.size(0))
-        print("loadImg time: %.6f s"%((time.time()-start)), end=' ')    
-        start = time.time()
-        # features = torch.empty(self.bag_size, self.embedding_size)
-        features = torch.empty(self.bag_size, 512)
-        for idx in range(int(self.bag_size/self.batch_size)):
-            fea = model(bagdata[idx*self.batch_size:(idx+1)*self.batch_size,:].to(device))
-            fea = F.normalize(fea).detach()
-            features[ idx*self.batch_size:(idx+1)*self.batch_size,: ] = fea
-        features.cpu()
-        print("getFeature time: %.6f s"%((time.time()-start))) 
-        # features = model( bagdata.to(device) )
-        # features = F.normalize(features).detach().cpu()
-        start = time.time()
-        dist_matrix = torch.empty(self.bag_size, self.bag_size)
-        dist_matrix = self._get_dist(features.numpy())
-        np.set_printoptions(suppress=True)
-        print("dataLoader reset:", bagdata.size(), "distMatric use time: %.6f s"%((time.time()-start)))
-        sys.stdout.flush()
-        assert dist_matrix.shape[0] == self.bag_size
-        baglabel_1v = baglabel.view(baglabel.shape[0]).numpy().astype(np.int32)
-        for a_idx in range( self.bag_size ):
-            p_dist = dist_matrix[a_idx].copy()
-            n_dist = dist_matrix[a_idx]
-            a_label = baglabel_1v[a_idx]
-            
-            # TODO:  skip 1 img/id
-            if(np.sum(baglabel_1v==a_label) == 1):
-                p_idx = a_idx
-            else:
-                p_dist[np.where(baglabel_1v!=a_label)] = 0
-                numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
-                p_candidate = p_dist.argsort()[-numCandidate:]
-                p_idx = np.random.choice( p_candidate )
-            # TODO: incase batch_size < class id images
-            n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
-            numCandidate = int( max(1, self.bag_size*0.1) )
-            # numCandidate = 1
-            n_candidate = n_dist.argsort()[ :numCandidate ]    
-            n_idx = np.random.choice(n_candidate)
-            # print("dist after:", n_dist)
-            # print("triplet find:", a_idx, p_idx, n_idx)
-            self.bag_img_seq.append((bagdata[a_idx],bagdata[p_idx],bagdata[n_idx]))
-            self.bag_lab_seq.append( (int( baglabel_1v[a_idx] ), \
-                                      int( baglabel_1v[p_idx] ), \
-                                      int( baglabel_1v[n_idx] ) ) ) 
-          
-
     def __len__(self):
-        # if self.reseted:
-        #     return len(self.bag_img_seq)
-        # else:
         return len(self.samples)
 
 if __name__=='__main__':
