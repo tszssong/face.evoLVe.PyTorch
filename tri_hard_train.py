@@ -49,14 +49,14 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=128)
-    parser.add_argument('--bag-size', type=int, default=8192)
-    parser.add_argument('--margin', type=float, default=0.2)
-    parser.add_argument('--lr', type=float, default=0.05)
+    parser.add_argument('--batch-size', type=int, default=120)
+    parser.add_argument('--bag-size', type=int, default=600)
+    parser.add_argument('--margin', type=float, default=0.3)
+    parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--num-epoch', type=int, default=100000)
+    parser.add_argument('--num-epoch', type=int, default=1000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--disp-freq', type=int, default=1)
@@ -117,13 +117,13 @@ if __name__ == '__main__':
         transforms.ToTensor(),
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
     ])
-    # dataset_train = TripletImgData
+   
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
         
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
-                 shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
+                 shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
     print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
     sys.stdout.flush()  
     
@@ -135,21 +135,22 @@ if __name__ == '__main__':
                 schedule_lr(OPTIMIZER)
         losses = AverageMeter()
         top1   = AverageMeter()
-        BACKBONE.train()  # set to training mode
-
         for inputs, labels in iter(train_loader):  #bag_data
             start = time.time()
-            features = torch.empty(bagSize, 512)
+            features = torch.empty(bagSize, args.embedding_size)
+            BACKBONE.eval()  # set to training mode
+
             for b_idx in range(int(bagSize/batchSize)):
                 batchIn = inputs[b_idx*batchSize:(b_idx+1)*batchSize,:]
                 batchFea = BACKBONE(batchIn.to(DEVICE))
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
-              
+           
             dist_matrix = torch.empty(bagSize, bagSize)
             dist_matrix = get_dist(features.cpu().numpy())
             assert dist_matrix.shape[0] == bagSize
-            
+
+            np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
            
             bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
@@ -167,6 +168,7 @@ if __name__ == '__main__':
                     numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
                     p_candidate = p_dist.argsort()[-numCandidate:]
                     p_idx = np.random.choice( p_candidate )
+                
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
                 numCandidate = int( max(1, bagSize*0.1) )
@@ -179,7 +181,8 @@ if __name__ == '__main__':
                 bagLabel[a_idx*3]   = labels[a_idx]
                 bagLabel[a_idx*3+1] = labels[p_idx]
                 bagLabel[a_idx*3+2] = labels[n_idx]
-
+                
+            BACKBONE.train()  # set to training mode
             for b_idx in range(int(bagSize/batchSize)): 
                 _begin = int(3*b_idx*batchSize)
                 _end = int(3*(b_idx+1)*batchSize)
@@ -190,10 +193,10 @@ if __name__ == '__main__':
                 # show batch data: only ubuntu
                 if hostname=="ubuntu-System-Product-Name":
                     features = F.normalize(outputs).detach()
-                    showBatch(inputs.cpu().numpy(), labels.cpu().numpy(), \
-                              features.cpu().numpy(), args.batch_size)
+                    showBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
+                              features.cpu().numpy(), show_x=args.batch_size)
            
-                loss, loss_batch = LOSS(outputs, bLabel, margin)
+                loss, loss_batch = LOSS(outputs, bLabel, DEVICE, margin)
                 loss_batch = loss_batch.detach().cpu().numpy()
                 n_err = np.where(loss_batch!=0)[0].shape[0] 
                 prec = 1.0 - float(n_err) / loss_batch.shape[0]

@@ -23,13 +23,23 @@ class TripletLoss(nn.Module):
         super(TripletLoss, self).__init__()
         self.margin = margin
 
-    def forward(self, input, target, m=0):
+    def forward(self, input, target, device="cpu",  m=0, use_hard = True):
         _batchsize = input.size(0)
         assert _batchsize==target.size(0) 
+
         input = F.normalize(input)
-        anchor   = input[0:_batchsize//3,:]
-        positive = input[_batchsize//3:2*_batchsize//3,:]
-        negative = input[2*_batchsize//3:_batchsize,:]
+        if use_hard:
+            ind_list = [idx*3 for idx in range( int(_batchsize/3) )]
+            indices = torch.LongTensor(ind_list).to(device)
+            anchor   = torch.index_select(input, 0, indices)
+            indices = indices + 1
+            positive = torch.index_select(input, 0, indices)
+            indices = indices + 1
+            negative = torch.index_select(input, 0, indices)
+        else:
+            anchor   = input[0:_batchsize//3,:]
+            positive = input[_batchsize//3:2*_batchsize//3,:]
+            negative = input[2*_batchsize//3:_batchsize,:]
         
         distance_positive = (anchor - positive).pow(2).sum(1)
         distance_negative = (anchor - negative).pow(2).sum(1)
@@ -38,9 +48,5 @@ class TripletLoss(nn.Module):
         else:
             distances = distance_positive - distance_negative + m
         losses = F.relu(distances)
-        # print(m)
-        # print(distances, distances.sum(), distances.sum())
-        # print(losses, losses.mean(), losses.sum())
-        # sys.stdout.flush()
-        # losses = nn.PReLU(distances)
         return losses.mean(), losses 
+
