@@ -67,8 +67,7 @@ class TripletHardImgData(data.Dataset):
                                     "Supported extensions are: " + ",".join(extensions)))
             self.class_to_idx = class_to_idx
             self.classes = classes
-        # random.shuffle(samples)
-        self.samples = samples                #samples is a list like below:
+        self.samples = samples                 # samples is a list like below:
         self.targets = [s[1] for s in samples] # targets is a list with ids
        
     def _find_classes(self, dir):

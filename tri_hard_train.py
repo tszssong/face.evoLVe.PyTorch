@@ -15,12 +15,9 @@ from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
-from tqdm import tqdm
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.show_img import showBatch
-import torch.nn.functional as F
-# torch.multiprocessing.set_sharing_strategy('file_system')
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
@@ -214,11 +211,11 @@ if __name__ == '__main__':
             bag_acc = acc.avg
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
-            print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), "%.3f s/bag"%(time.time()-start) )
-            print('Epoch: {}/{} Bag: {} Batch: {} \t'
+            print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()),\
+                 " Bag: %d Batch: %d"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) )
+            print('Epoch: {}/{} \t'
                 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
-                'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(
-                epoch + 1, args.num_epoch,bagIdx, batch, loss=losses, acc=acc))
+                'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
             sys.stdout.flush() 
 
@@ -230,7 +227,7 @@ if __name__ == '__main__':
                 accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
                 buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
                 accuracy_calfw, best_threshold_calfw, roc_curve_calfw = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, calfw, calfw_issame)
-                print("Epoch {}/{}, Evaluation: CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, \
+                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, AgeDB Acc: %.4f"%(epoch + 1, \
                        args.num_epoch, accuracy_cfp_fp, accuracy_agedb))
                 print("=" * 60)
                 sys.stdout.flush() 
