@@ -51,28 +51,18 @@ def make_dataset(dir, class_to_idx, extensions=None, is_valid_file=None):
     return images
 
 class TripletHardImgData(data.Dataset):
-    def __init__(self, root, model, \
-                 batch_size, bag_size, input_size, \
+    def __init__(self, root, input_size, \
                  transform=None, target_transform=None, use_list = True):
         super(TripletHardImgData, self).__init__()
         print("triplet hard image dataloader inited")
-        self.root = root
         self.transform = transform               # transform datas
         self.target_transform = target_transform # transform targets
-        self.model = model
-        self.batch_size = batch_size
-        self.bag_size = bag_size
         self.input_size = input_size
-        self._cur = 0
-        self.bag_img_seq = []
-        self.bag_lab_seq = []
-        self.reseted = False
-        self.n_workers = 4
         if use_list:
-            samples = self._read_paths(self.root)
+            samples = self._read_paths(root)
         else:
             classes, class_to_idx = self._find_classes(self.root)
-            samples = make_dataset(self.root, class_to_idx, extensions=IMG_EXTENSIONS)
+            samples = make_dataset(root, class_to_idx, extensions=IMG_EXTENSIONS)
             if len(samples) == 0:
                 raise (RuntimeError("Found 0 files in subfolders of: " + self.root + "\n"
                                     "Supported extensions are: " + ",".join(extensions)))
@@ -80,10 +70,8 @@ class TripletHardImgData(data.Dataset):
             self.classes = classes
         # random.shuffle(samples)
         self.samples = samples                #samples is a list like below:
-        start = time.time()
         self.targets = [s[1] for s in samples] # targets is a list with ids
-        # self.reset(self.model)
-
+       
     def _find_classes(self, dir):
         if sys.version_info >= (3, 5):   # Faster and available in Python 3.5 and above
             classes = [d.name for d in os.scandir(dir) if d.is_dir()]
@@ -103,27 +91,21 @@ class TripletHardImgData(data.Dataset):
         return samples 
 
     def __getitem__(self, index):
-        return self.bag_img_seq[index], self.bag_lab_seq[index]
+        path, target = self.samples[index]
+        img = pil_loader(path)
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, int(target)
+        # return self.bag_img_seq[index], self.bag_lab_seq[index]
 
-    #https://blog.csdn.net/Tan_HandSome/article/details/82501902
-    def _get_dist(self, emb):
-        vecProd = np.dot(emb, emb.transpose())
-        sqr_emb = emb**2
-        sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
-        ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
+    
 
-        sqr_et = emb**2
-        sum_sqr_et = np.sum(sqr_et, axis=1)
-        ex_sum_sqr_et = np.tile(sum_sqr_et, (vecProd.shape[0], 1))
-        sq_ed = ex_sum_sqr_emb + ex_sum_sqr_et - 2*vecProd
-        sq_ed[sq_ed<0] = 0.0
-        ed = np.sqrt(sq_ed)
-
-        return np.asarray(ed)
     def _load_func(self, qin, pout):  
         for item in qin:
             path, target = item 
             img = pil_loader(path) 
+            # if self.transform is not None:
+            #     img = self.transform(img)
             pout.append( (img, int(target)) )
 
     def _get_bag(self):
@@ -168,13 +150,15 @@ class TripletHardImgData(data.Dataset):
         start = time.time()
         for imgs in p_tuple:
             bag.extend(imgs)
-        print("gather:%.4f"%(time.time()-start) )
+        print("gather:%.4f"%(time.time()-start), end=' '  )
+        start = time.time()
         for idx in range(len(bag)):
             img, label = bag[idx]
             if self.transform is not None:
                 img = self.transform(img)
             bagdata[idx] = img
             baglabel[idx] = label
+        print("transfer:%.4f"%(time.time()-start))
         return bagdata, baglabel
 
     def reset(self, model=None, device="cpu"):
@@ -234,10 +218,10 @@ class TripletHardImgData(data.Dataset):
           
 
     def __len__(self):
-        if self.reseted:
-            return len(self.bag_img_seq)
-        else:
-            return len(self.samples)
+        # if self.reseted:
+        #     return len(self.bag_img_seq)
+        # else:
+        return len(self.samples)
 
 if __name__=='__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

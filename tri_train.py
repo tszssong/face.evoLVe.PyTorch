@@ -19,7 +19,7 @@ from tqdm import tqdm
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.show_img import showBatch
-torch.multiprocessing.set_sharing_strategy('file_system')
+# torch.multiprocessing.set_sharing_strategy('file_system')
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
@@ -95,18 +95,15 @@ if __name__ == '__main__':
         transforms.ToTensor(),
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
     ])
-
+    # dataset_train = TripletImgData
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), BACKBONE, \
         batch_size = args.batch_size, bag_size = args.bag_size, input_size = INPUT_SIZE,\
-        transform=train_transform, n_workers=args.num_loaders, embedding_size=args.embedding_size)
+        transform=train_transform)
         
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.batch_size, shuffle=True, \
                                   pin_memory = True, num_workers = args.num_workers, drop_last = True )
 
-    # NUM_CLASS = len(train_loader.dataset.classes)
-    # print("Number of Training Classes: {}".format(NUM_CLASS))
-    sys.stdout.flush()  
     if MULTI_GPU:   # multi-GPU setting
         BACKBONE = nn.DataParallel(BACKBONE, device_ids = GPU_ID)
         BACKBONE = BACKBONE.to(DEVICE)
@@ -125,7 +122,7 @@ if __name__ == '__main__':
         top1   = AverageMeter()
 
         # for inputs, labels in tqdm(iter(train_loader)):
-        dataset_train.reset(BACKBONE,DEVICE)
+        # dataset_train.reset(BACKBONE,DEVICE)
         start = time.time()
         BACKBONE.train()  # set to training mode
         for inputs, labels in iter(train_loader):
@@ -158,7 +155,7 @@ if __name__ == '__main__':
             loss.backward()
             OPTIMIZER.step()
             batch += 1 # batch index
-            
+            del a, p, n
         epoch_loss = losses.avg
         epoch_acc = top1.avg
         writer.add_scalar("Training_Loss", epoch_loss, epoch + 1)
