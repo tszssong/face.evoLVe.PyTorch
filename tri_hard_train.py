@@ -64,7 +64,7 @@ if __name__ == '__main__':
     batchSize = args.batch_size
     bagSize = args.bag_size
     assert bagSize%batchSize == 0
-    assert batchSize%3 == 0 #triplet
+    # assert batchSize%3 == 0 #triplet
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
    
@@ -199,8 +199,8 @@ if __name__ == '__main__':
                 n_err = np.where(loss_batch!=0)[0].shape[0] 
                 prec = 1.0 - float(n_err) / loss_batch.shape[0]
                 
-                losses.update(loss.data.item(), inputs.size(0))
-                acc.update(prec, inputs.size(0))
+                losses.update(loss.data.item(), bIn.size(0))
+                acc.update(prec, bIn.size(0))
                 # compute gradient and do SGD step
                 OPTIMIZER.zero_grad()
                 loss.backward()
@@ -212,7 +212,7 @@ if __name__ == '__main__':
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()),\
-                 " Bag: %d Batch: %d"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) )
+                 " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) )
             print('Epoch: {}/{} \t'
                 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                 'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
