@@ -21,20 +21,6 @@ from imgdata.show_img import showBatch
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
-#https://blog.csdn.net/Tan_HandSome/article/details/82501902
-def get_dist( emb ):
-    vecProd = np.dot(emb, emb.transpose())
-    sqr_emb = emb**2
-    sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
-    ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
-    sqr_et = emb**2
-    sum_sqr_et = np.sum(sqr_et, axis=1)
-    ex_sum_sqr_et = np.tile(sum_sqr_et, (vecProd.shape[0], 1))
-    sq_ed = ex_sum_sqr_emb + ex_sum_sqr_et - 2*vecProd
-    sq_ed[sq_ed<0] = 0.0
-    ed = np.sqrt(sq_ed)
-    return np.asarray(ed)
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
@@ -144,8 +130,6 @@ if __name__ == '__main__':
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
            
-            #dist_matrix = torch.empty(bagSize, bagSize)
-            #dist_matrix = get_dist(features.cpu().numpy())
             dist_matrix = torch.mm(features, features.t())
             dist_matrix = 2-dist_matrix
             dist_matrix = dist_matrix.numpy()
@@ -166,14 +150,15 @@ if __name__ == '__main__':
                     p_idx = a_idx
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
+                    # numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
+                    numCandidate = 1
                     p_candidate = p_dist.argsort()[-numCandidate:]
                     p_idx = np.random.choice( p_candidate )
                 
                 # TODO: incase batch_size < class id images
-                n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
-                numCandidate = int( max(1, bagSize*0.1) )
-                # numCandidate = 1
+                n_dist[ np.where(baglabel_1v==a_label) ] = np.NaN    #fill same ids with a bigNumber
+                # numCandidate = int( max(1, bagSize*0.1) )
+                numCandidate = 1
                 n_candidate = n_dist.argsort()[ :numCandidate ]    
                 n_idx = np.random.choice(n_candidate)
                 bagIn[a_idx*3]   = inputs[a_idx]
