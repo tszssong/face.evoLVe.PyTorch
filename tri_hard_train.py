@@ -119,7 +119,7 @@ if __name__ == '__main__':
             start = time.time()
             bagIdx += 1
             features = torch.empty(bagSize, args.embedding_size)
-            BACKBONE.eval()  # set to training mode
+            BACKBONE.eval()  # set to testing mode
 
             for b_idx in range(int(bagSize/batchSize)):
                 batchIn = inputs[b_idx*batchSize:(b_idx+1)*batchSize,:]
@@ -205,7 +205,7 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_bag==0 and bagIdx!=0):
-                print("=" * 60, "\nPerform Evaluation on CFP_FP AgeDB, and Save Checkpoints...")
+                print("=" * 60, "\nEvaluation on CFP_FP AgeDB, and Save Checkpoints...")
                 sys.stdout.flush() 
                 accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
