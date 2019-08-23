@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 import bcolz
 import io
-import os
+import os,sys
 
 
 # Support: ['get_time', 'l2_norm', 'make_weights_for_balanced_classes', 'get_val_pair', 'get_val_data', 'separate_irse_bn_paras', 'separate_resnet_bn_paras', 'warm_up_lr', 'schedule_lr', 'de_preprocess', 'hflip_batch', 'ccrop_batch', 'gen_plot', 'perform_val', 'buffer_val', 'AverageMeter', 'accuracy']
@@ -175,13 +175,14 @@ def gen_plot(fpr, tpr):
 
 def perform_val(multi_gpu, device, embedding_size, batch_size, backbone, carray, issame, nrof_folds = 10, tta = True):
     if multi_gpu:
-        backbone = backbone.module # unpackage model from DataParallel
+        backbone = backbone.module    # unpackage model from DataParallel
         backbone = backbone.to(device)
     else:
         backbone = backbone.to(device)
     backbone.eval() # switch to evaluation mode
 
     idx = 0
+    
     embeddings = np.zeros([len(carray), embedding_size])
     with torch.no_grad():
         while idx + batch_size <= len(carray):
