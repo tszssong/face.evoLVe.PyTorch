@@ -21,20 +21,6 @@ from imgdata.show_img import showBatch
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
-#https://blog.csdn.net/Tan_HandSome/article/details/82501902
-def get_dist( emb ):
-    vecProd = np.dot(emb, emb.transpose())
-    sqr_emb = emb**2
-    sum_sqr_emb = np.matrix( np.sum(sqr_emb, axis=1) )
-    ex_sum_sqr_emb = np.tile(sum_sqr_emb.transpose(), (1, vecProd.shape[1]))
-    sqr_et = emb**2
-    sum_sqr_et = np.sum(sqr_et, axis=1)
-    ex_sum_sqr_et = np.tile(sum_sqr_et, (vecProd.shape[0], 1))
-    sq_ed = ex_sum_sqr_emb + ex_sum_sqr_et - 2*vecProd
-    sq_ed[sq_ed<0] = 0.0
-    ed = np.sqrt(sq_ed)
-    return np.asarray(ed)
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
@@ -144,8 +130,6 @@ if __name__ == '__main__':
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
            
-            #dist_matrix = torch.empty(bagSize, bagSize)
-            #dist_matrix = get_dist(features.cpu().numpy())
             dist_matrix = torch.mm(features, features.t())
             dist_matrix = 2-dist_matrix
             dist_matrix = dist_matrix.numpy()
@@ -172,7 +156,7 @@ if __name__ == '__main__':
                     p_idx = np.random.choice( p_candidate )
                 
                 # TODO: incase batch_size < class id images
-                n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
+                n_dist[ np.where(baglabel_1v==a_label) ] = np.NaN    #fill same ids with a bigNumber
                 # numCandidate = int( max(1, bagSize*0.1) )
                 numCandidate = 1
                 n_candidate = n_dist.argsort()[ :numCandidate ]    
@@ -235,26 +219,6 @@ if __name__ == '__main__':
                        args.num_epoch, accuracy_cfp_fp, accuracy_agedb))
                 print("=" * 60)
                 sys.stdout.flush() 
-
-                # print("=" * 60, "\nPerform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
-                # sys.stdout.flush() 
-                # accuracy_lfw, best_threshold_lfw, roc_curve_lfw = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, lfw, lfw_issame)
-                # buffer_val(writer, "LFW", accuracy_lfw, best_threshold_lfw, roc_curve_lfw, epoch + 1)
-                # accuracy_cfp_ff, best_threshold_cfp_ff, roc_curve_cfp_ff = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, cfp_ff, cfp_ff_issame)
-                # buffer_val(writer, "CFP_FF", accuracy_cfp_ff, best_threshold_cfp_ff, roc_curve_cfp_ff, epoch + 1)
-                # accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-                # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
-                # accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-                # buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
-                # accuracy_calfw, best_threshold_calfw, roc_curve_calfw = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, calfw, calfw_issame)
-                # buffer_val(writer, "CALFW", accuracy_calfw, best_threshold_calfw, roc_curve_calfw, epoch + 1)
-                # accuracy_cplfw, best_threshold_cplfw, roc_curve_cplfw = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, cplfw, cplfw_issame)
-                # buffer_val(writer, "CPLFW", accuracy_cplfw, best_threshold_cplfw, roc_curve_cplfw, epoch + 1)
-                # accuracy_vgg2_fp, best_threshold_vgg2_fp, roc_curve_vgg2_fp = perform_val(MULTI_GPU, DEVICE, args.embedding_size, args.batch_size, BACKBONE, vgg2_fp, vgg2_fp_issame)
-                # buffer_val(writer, "VGGFace2_FP", accuracy_vgg2_fp, best_threshold_vgg2_fp, roc_curve_vgg2_fp, epoch + 1)
-                # print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FF Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}, CALFW Acc: {}, CPLFW Acc: {}, VGG2_FP Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_ff, accuracy_cfp_fp, accuracy_agedb, accuracy_calfw, accuracy_cplfw, accuracy_vgg2_fp))
-                # print("=" * 60)
-                # sys.stdout.flush() 
 
                 if MULTI_GPU:
                     torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
