@@ -2,7 +2,7 @@ from PIL import Image
 from detector import detect_faces
 from align_trans import get_reference_facial_points, warp_and_crop_face
 import numpy as np
-import os
+import os,sys
 from tqdm import tqdm
 import argparse
 
@@ -33,7 +33,10 @@ if __name__ == '__main__':
             os.mkdir(os.path.join(dest_root, subfolder))
         for image_name in os.listdir(os.path.join(source_root, subfolder)):
             print("Processing\t{}".format(os.path.join(source_root, subfolder, image_name)))
-            img = Image.open(os.path.join(source_root, subfolder, image_name))
+            try:
+              img = Image.open(os.path.join(source_root, subfolder, image_name))
+            except:
+              print("read",image_name, "from", subfolder, "error!")
             try: # Handle exception
                 _, landmarks = detect_faces(img)
             except Exception:
@@ -42,6 +45,7 @@ if __name__ == '__main__':
             if len(landmarks) == 0: # If the landmarks cannot be detected, the img will be discarded
                 print("{} is discarded due to non-detected landmarks!".format(os.path.join(source_root, subfolder, image_name)))
                 continue
+            sys.stdout.flush()
             facial5points = [[landmarks[0][j], landmarks[0][j + 5]] for j in range(5)]
             warped_face = warp_and_crop_face(np.array(img), facial5points, reference, crop_size=(crop_size, crop_size))
             img_warped = Image.fromarray(warped_face)

@@ -144,8 +144,11 @@ if __name__ == '__main__':
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
            
-            dist_matrix = torch.empty(bagSize, bagSize)
-            dist_matrix = get_dist(features.cpu().numpy())
+            #dist_matrix = torch.empty(bagSize, bagSize)
+            #dist_matrix = get_dist(features.cpu().numpy())
+            dist_matrix = torch.mm(features, features.t())
+            dist_matrix = 2-dist_matrix
+            dist_matrix = dist_matrix.numpy()
             assert dist_matrix.shape[0] == bagSize
 
             np.set_printoptions(suppress=True)
@@ -163,14 +166,15 @@ if __name__ == '__main__':
                     p_idx = a_idx
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
+                    #numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
+                    numCandidate = 1
                     p_candidate = p_dist.argsort()[-numCandidate:]
                     p_idx = np.random.choice( p_candidate )
                 
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 2048    #fill same ids with a bigNumber
-                numCandidate = int( max(1, bagSize*0.1) )
-                # numCandidate = 1
+                # numCandidate = int( max(1, bagSize*0.1) )
+                numCandidate = 1
                 n_candidate = n_dist.argsort()[ :numCandidate ]    
                 n_idx = np.random.choice(n_candidate)
                 bagIn[a_idx*3]   = inputs[a_idx]
