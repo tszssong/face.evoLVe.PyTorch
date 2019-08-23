@@ -5,6 +5,9 @@
 - tri_train.py 用triplet loss训练  
 - tri_hard_train.py 加入难样本  
 
+#### 测试脚本  
+- utils/test_ja.py 测试  
+
 #### TODO  
   需要按id shuffle    
   margin自适应， 连续5个epoch 精度大于0.95后margin+1  
