@@ -60,15 +60,15 @@ def alignedImg2feature(img_root, save_root, model, device="cpu", suffix='.ft', s
 
 def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.ft'):
     
+    print(img_list)
     done_count=0
     with open(img_list, 'r') as fr:
-        
-        for line in fr.readline():
-            print(line)
+        lines = fr.readlines()
+        for line in lines:
             path = line.strip().split(' ')[0]
-            img_name = path.split('/')[-1]
-            sub_dir  = path.split('/')[-2]
-            ft_subdir=save_root + sub_dir
+            img_name  = path.split('/')[-1]
+            sub_dir   = path.split('/')[-2]
+            ft_subdir = save_root + '/' + sub_dir
             if not os.path.isdir(ft_subdir):
                 os.makedirs(ft_subdir)
             ft_name  = img_name.replace('.jpg', suffix)
@@ -87,7 +87,9 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
             batchFea = F.normalize(batchFea).detach()
             feature = batchFea[0].cpu().numpy()
             
-            np.savetxt(ft_subdir + ft_name, feature)
+            np.savetxt(ft_subdir + '/' + ft_name, feature)
+            if(done_count%500==0):
+                print(done_count,"ft extracted")
             done_count += 1
     return done_count
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument('--data-root', type=str, default='/cloud_data01/StrongRootData/TestData/CASIA-IvS-Test/')
     parser.add_argument('--list', type=str, default='CASIA-IvS-Test-final-v3-revised.lst')
     parser.add_argument('--ft-suffix', type=str, default='.ft')
-    parser.add_argument('--backbone-resume-root', type=str, default='../models/py/r50e1b12000_082509/')
+    parser.add_argument('--backbone-resume-root', type=str, default='../../models/py/r50e1b12000_082509/')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--embedding-size', type=int, default=512)
