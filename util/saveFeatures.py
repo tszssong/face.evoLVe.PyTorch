@@ -86,6 +86,7 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
                 batchFea = model(batchIn.to(device))
             batchFea = F.normalize(batchFea).detach()
             feature = batchFea[0].cpu().numpy()
+            
             np.savetxt(ft_subdir + ft_name, feature)
             done_count += 1
     return done_count
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     parser.add_argument('--data-root', type=str, default='/cloud_data01/StrongRootData/TestData/CASIA-IvS-Test/')
     parser.add_argument('--list', type=str, default='CASIA-IvS-Test-final-v3-revised.lst')
     parser.add_argument('--ft-suffix', type=str, default='.ft')
-    parser.add_argument('--backbone-resume-root', type=str, default='/data02/zhengmeisong/models/py/r50e1b12000_082509/')
+    parser.add_argument('--backbone-resume-root', type=str, default='../models/py/r50e1b12000_082509/')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--embedding-size', type=int, default=512)
