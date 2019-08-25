@@ -4,12 +4,6 @@ import bisect
 import PIL
 from PIL import Image 
 
-from sklearn.model_selection import KFold
-from sklearn.decomposition import PCA
-import sklearn
-from scipy import interpolate
-from scipy.spatial.distance import pdist
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -92,7 +86,8 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
                 print(done_count,"ft extracted")
             done_count += 1
     return done_count
-
+# extra features, to be compatible with mxnet
+# test: hpcgpu40:/cloud_data01/zhengmeisong/wkspace/qh_recog_clean/deploy_st/getP5Casia/run_test_torch.sh
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-root', type=str, default='/cloud_data01/StrongRootData/TestData/CASIA-IvS-Test/')
