@@ -1,6 +1,6 @@
 import os, sys, time, os.path, argparse, socket
 import numpy as np
-
+import bisect
 import PIL
 from PIL import Image 
 
@@ -21,7 +21,7 @@ sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
 from model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 
-def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_folds = 10, pca = 0):
+def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_folds = 10):
     assert (embeddings1.shape[0] == embeddings2.shape[0])
     assert (embeddings1.shape[1] == embeddings2.shape[1])
     nrof_pairs = min(len(actual_issame), embeddings1.shape[0])
@@ -36,31 +36,12 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
     accuracy = np.zeros((nrof_folds))
     best_thresholds = np.zeros((nrof_folds))
     indices = np.arange(nrof_pairs)
-    # print('pca', pca)
-
-    if pca == 0:
-        diff = np.subtract(embeddings1, embeddings2)
-        dist = np.sum(np.square(diff), 1)
-        # dist = pdist(np.vstack([embeddings1, embeddings2]), 'cosine')
+   
+    diff = np.subtract(embeddings1, embeddings2)
+    dist = np.sum(np.square(diff), 1)
+    # dist = pdist(np.vstack([embeddings1, embeddings2]), 'cosine')
+    print(dist)
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
-        # print('train_set', train_set)
-        # print('test_set', test_set)
-        if pca > 0:
-            print("doing pca on", fold_idx)
-            embed1_train = embeddings1[train_set]
-            embed2_train = embeddings2[train_set]
-            _embed_train = np.concatenate((embed1_train, embed2_train), axis = 0)
-            # print(_embed_train.shape)
-            pca_model = PCA(n_components = pca)
-            pca_model.fit(_embed_train)
-            embed1 = pca_model.transform(embeddings1)
-            embed2 = pca_model.transform(embeddings2)
-            embed1 = sklearn.preprocessing.normalize(embed1)
-            embed2 = sklearn.preprocessing.normalize(embed2)
-            # print(embed1.shape, embed2.shape)
-            diff = np.subtract(embed1, embed2)
-            dist = np.sum(np.square(diff), 1)
-
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
         for threshold_idx, threshold in enumerate(thresholds):
@@ -70,8 +51,8 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_fold
         best_thresholds[fold_idx] = thresholds[best_threshold_index]
         for threshold_idx, threshold in enumerate(thresholds):
             tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = calculate_accuracy(threshold,
-                                                                              dist[test_set],
-                                                                              actual_issame[test_set])
+                                                                                    dist[test_set],
+                                                                                    actual_issame[test_set])
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set], actual_issame[test_set])
 
     tpr = np.mean(tprs, 0)
@@ -161,8 +142,8 @@ def alignedImg2feature(img_root, save_root, model, device="cpu", suffix='.ft', s
             batchIn = torch.empty(2,3,112,112)
             batchIn[0] = sp_img
             batchIn[1] = id_img
-           
-            batchFea = model(batchIn.to(device))
+            with torch.no_grad():
+                batchFea = model(batchIn.to(device))
             batchFea = F.normalize(batchFea).detach()
             sp_feat = batchFea[0].cpu().numpy()
             id_feat = batchFea[1].cpu().numpy()
@@ -194,7 +175,7 @@ def load_features(load_root, maxNum=70000):
                 issame.append(True)
          
             ft_name, suffix = line.strip().split('.')
-            neg_name = str(int(ft_name) + 100)
+            neg_name = str(int(ft_name) + 1000)
             try:
                 emb_neg_id = np.loadtxt(load_root + '/ids/' + neg_name + '.' + suffix)
             except:
@@ -211,15 +192,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-root', type=str, default='/data02/zhengmeisong/testData/ja-ivs')
     parser.add_argument('--ft-suffix', type=str, default='.ft')
-    parser.add_argument('--backbone-resume-root', type=str, default='/data02/zhengmeisong/models/R50E1B3600_TRI_20190820/')
+    parser.add_argument('--backbone-resume-root', type=str, default='/data02/zhengmeisong/models/py/r50e1b12000_082509/')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=120)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='1')
-    parser.add_argument('--start', type=int, default=1015000)
-    parser.add_argument('--end', type=int, default=1015099)
+    parser.add_argument('--start', type=int, default=1000000)
+    parser.add_argument('--end',   type=int, default=1069999)
     args = parser.parse_args()
     assert args.start>=1000000 and args.end<1070000 and args.start<args.end
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
@@ -244,12 +225,23 @@ if __name__ == "__main__":
     # print("extra feature used %.2f s"%(time.time()-start) )
 
     start = time.time()
-    embedding1, embedding2, issame = load_features(args.backbone_resume_root, 100)
+    embedding1, embedding2, issame = load_features(args.backbone_resume_root, 50000)
     print("load feature  used %.2f s"%(time.time()-start) )
     start = time.time()
-    thresholds = np.arange(0, 4, 0.01)
+    thresholds = np.arange(0, 4, 0.0001)
     tpr, fpr, accuracy, best_thresholds = calculate_roc(thresholds, embedding1, embedding2, np.asarray(issame))
     print("cal roc used %.2f s"%(time.time()-start) )
-    # print(tpr)
-    # print(fpr)   
-    print("acc:",accuracy.mean())  
+    print(tpr)
+    print(fpr)   
+    print("acc:",accuracy.mean(),"@ TH=",best_thresholds) 
+    tar_01 = tpr[bisect.bisect_left(fpr, 0.01)]
+    tar_001 = tpr[bisect.bisect_left(fpr, 0.001)]
+    tar_0001 = tpr[bisect.bisect_left(fpr, 0.0001)]
+    tar_00001 = tpr[bisect.bisect_left(fpr, 0.00001)]
+    tar_000001 = tpr[bisect.bisect_left(fpr, 0.000001)]
+    print(tar_01, tar_001, tar_0001, tar_00001, tar_000001)
+    print("%.5f @ FPR=%.7f"%(tar_01,0.01))
+    print("%.5f @ FPR=%.7f"%(tar_001,0.001))
+    print("%.5f @ FPR=%.7f"%(tar_0001,0.0001))
+    print("%.5f @ FPR=%.7f"%(tar_00001,0.00001))
+    print("%.5f @ FPR=%.7f"%(tar_000001,0.000001))
