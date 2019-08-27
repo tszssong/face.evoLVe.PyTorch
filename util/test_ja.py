@@ -205,7 +205,7 @@ if __name__ == "__main__":
     assert args.start>=1000000 and args.end<1070000 and args.start<args.end
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     BACKBONE = eval(args.backbone_name)(INPUT_SIZE)
-    backbone_load_path = args.backbone_resume_root + args.backbone_resume_root.split('/')[-2] + '.pth'
+    backbone_load_path = args.backbone_resume_root +'/'+ args.backbone_resume_root.split('/')[-2] + '.pth'
     # if backbone_load_path and os.path.isfile(backbone_load_path):
     #     print("Loading Backbone Checkpoint '{}'".format(backbone_load_path))
     #     BACKBONE.load_state_dict(torch.load(backbone_load_path)) 

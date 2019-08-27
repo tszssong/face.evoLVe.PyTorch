@@ -173,7 +173,8 @@ def gen_plot(fpr, tpr):
     return buf
 
 
-def perform_val(multi_gpu, device, embedding_size, batch_size, backbone, carray, issame, nrof_folds = 10, tta = True):
+def perform_val(multi_gpu, device, embedding_size, batch_size, backbone, \
+                carray, issame, nrof_folds = 10, tta = True):
     if multi_gpu:
         backbone = backbone.module    # unpackage model from DataParallel
         backbone = backbone.to(device)
