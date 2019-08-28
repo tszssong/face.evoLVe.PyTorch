@@ -1,8 +1,10 @@
 import torch
 import torchvision.transforms as transforms
 import torch.nn.functional as F
+import os,sys,cv2,pickle
 
-from .verification import evaluate
+sys.path.append( os.path.dirname(__file__) )
+from verification import evaluate
 
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -11,7 +13,6 @@ import numpy as np
 from PIL import Image
 import bcolz
 import io
-import os,sys
 
 
 # Support: ['get_time', 'l2_norm', 'make_weights_for_balanced_classes', 'get_val_pair', 'get_val_data', 'separate_irse_bn_paras', 'separate_resnet_bn_paras', 'warm_up_lr', 'schedule_lr', 'de_preprocess', 'hflip_batch', 'ccrop_batch', 'gen_plot', 'perform_val', 'buffer_val', 'AverageMeter', 'accuracy']
@@ -53,12 +54,134 @@ def make_weights_for_balanced_classes(images, nclasses):
 
 
 def get_val_pair(path, name):
-    carray = bcolz.carray(rootdir = os.path.join(path, name), mode = 'r')
-    issame = np.load('{}/{}_list.npy'.format(path, name))
-
+    if not "pkl" in name:
+        carray = bcolz.carray(rootdir = os.path.join(path, name), mode = 'r')
+        issame = np.load('{}/{}_list.npy'.format(path, name))
+    else:
+        loadfile = open(path+'/'+name, 'rb')
+        carray,issame = pickle.load(loadfile)
+        carray = carray.astype(np.float32)
+        issame = issame.astype(np.float32)
+        for idx in range(carray.shape[0]):
+            carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx]) )
+    
     return carray, issame
 
+def get_val_pair_img(path, name):
+    carray = bcolz.carray(rootdir = os.path.join(path, name), mode = 'r')
+    issame = np.load('{}/{}_list.npy'.format(path, name))
+    print(type(carray), type(issame))
+    print(len(carray), len(issame))
+    print( type(issame[0]), issame[0] )
+    # t_carry = torch.tensor(carray)
+    # print(type(t_carry))
+    np_carry = np.array(carray)
+    print(type(np_carry),np_carry.shape)
+    for idx in range(np_carry.shape[0]):
+        im = np_carry[idx]
+        # print(im.shape)
+        im = im*127.5 + 127.5
+        im = im.astype(np.uint8)
+        im = np.transpose(im, (1,2,0))
+        # im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+        cv2.imshow("im", im)
+        cv2.waitKey()
+    return carray, issame
 
+def get_val_pair_pickl(path, name):
+    loadfile = open(path+'/'+name, 'rb')
+    carray,issame = pickle.load(loadfile)
+    carray = carray.astype(np.float32)
+    issame = issame.astype(np.float32)
+    for idx in range(carray.shape[0]):
+        carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx])+0.00001 )
+
+        # carray[idx][0] = ( carray[idx][0]-np.mean(carray[idx][0]) ) / ( np.max(carray[idx][0])-np.min(carray[idx][0])+0.00001 )
+        # carray[idx][1] = ( carray[idx][1]-np.mean(carray[idx][1]) ) / ( np.max(carray[idx][1])-np.min(carray[idx][1])+0.00001 )
+        # carray[idx][2] = ( carray[idx][0]-np.mean(carray[idx][2]) ) / ( np.max(carray[idx][2])-np.min(carray[idx][2])+0.00001 )
+    print(type(carray), type(issame))
+    print(len(carray), len(issame))
+    print( type(issame[0]), issame[0] )
+    # t_carry = torch.tensor(carray)
+    # print(type(t_carry))
+    np_carry = np.array(carray)
+    print(type(np_carry),np_carry.shape)
+    for idx in range(np_carry.shape[0]):
+        im = np_carry[idx]
+        # print(im.shape)
+        im = im*127.5 + 127.5
+        im = im.astype(np.uint8)
+        im = np.transpose(im, (1,2,0))
+        # im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+        cv2.imshow("im", im)
+        cv2.waitKey()
+    return carray, issame
+
+tensor_transform = transforms.Compose([  transforms.ToTensor(),
+    transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] ),
+])
+
+def get_jaivs_var_lists(path):
+    alist = []
+    plist = []
+    nlist = []
+    for i in range(1572000, 1576000):
+        imgname = str(i) + '.jpg'
+        try:
+            idImg = Image.open(path + '/ids/JPEGImages/' + imgname) #.convert('RGB')
+            spotImg = Image.open(path + '/spots/JPEGImages/' + imgname) 
+        except:
+            print(imgname, "not exits, skip!!!")
+            continue
+
+        if i<1575000:
+            negidx = i+1000
+        else:
+            negidx = i-3000
+            
+        negname = str(negidx) + '.jpg'
+        isValid = False
+        offset = 0
+        while not isValid and offset<1000:
+            offset += 2
+            try:
+                negImg = Image.open(path + '/spots/JPEGImages/' + negname)
+                isValid = True
+            except:
+                print("Neg",negname, "not exists, one more try...")
+                negname = str(negidx+offset) + '.jpg'
+                isValid = False
+        alist.append(path + '/ids/JPEGImages/' + imgname)
+        plist.append(path + '/spots/JPEGImages/' + imgname)
+        nlist.append(path + '/spots/JPEGImages/' + negname)
+    return alist, plist, nlist
+
+def gen_jaivs_var_data(path, name):
+    totalpairs = 0
+    alist, plist, nlist = get_jaivs_var_lists(path)
+    assert(len(alist)==len(plist))
+    array = np.zeros([4*len(alist), 3, 112, 112]).astype(np.uint8)
+    issame = np.zeros(2*len(alist)).astype(np.uint8)
+    for idx in range(len(alist)):
+        a = cv2.imread(alist[idx])
+        p = cv2.imread(plist[idx])
+        n = cv2.imread(nlist[idx])
+        a=a.transpose((2,0,1))
+        p=p.transpose((2,0,1))
+        n=n.transpose((2,0,1))
+        array[idx] = a
+        array[idx+1] = p
+        array[idx+2] = a
+        array[idx+3] = n
+        
+        issame[idx] = 1
+        issame[idx] = 0
+
+    print(len(issame), len(plist))
+    outputfile = open(path+'/'+name+'.pkl', 'wb')
+    pickle.dump((array,issame),outputfile)
+    outputfile.close()
+      
 def get_val_data(data_path):
     lfw, lfw_issame = get_val_pair(data_path, 'lfw')
     cfp_ff, cfp_ff_issame = get_val_pair(data_path, 'cfp_ff')
@@ -254,3 +377,10 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
 
     return res
+
+if __name__ == '__main__':
+    print("utils")
+    # gen_jaivs_var_data('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs')
+    get_val_pair_pickl('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs.pkl')
+    # get_val_pair_img('/home/ubuntu/zms/data/ms1m_emore100/', 'vgg2_fp')
+    # get_val_pair_img('/home/ubuntu/zms/data/ms1m_emore100/', 'agedb_30')
