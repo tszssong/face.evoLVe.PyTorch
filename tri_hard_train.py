@@ -13,7 +13,7 @@ from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.loss import FocalLoss, TripletLoss
-from util.utils import make_weights_for_balanced_classes, get_val_data, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
+from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
-    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33..pth')
     parser.add_argument('--head-resume-root', type=str, default='')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
@@ -42,8 +42,8 @@ if __name__ == '__main__':
     parser.add_argument('--num-epoch', type=int, default=1000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
-    parser.add_argument('--disp-freq', type=int, default=1)
-    parser.add_argument('--test-bag', type=int, default=20)
+    parser.add_argument('--save-freq', type=int, default=2)
+    parser.add_argument('--test-freq', type=int, default=4)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
     margin = args.margin
@@ -90,9 +90,11 @@ if __name__ == '__main__':
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    lfw, cfp_ff, cfp_fp, agedb, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, \
-         agedb_issame, calfw_issame, cplfw_issame, vgg2_fp_issame = get_val_data(args.data_root)
-
+    # lfw, cfp_ff, cfp_fp, agedb, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, \
+    #      agedb_issame, calfw_issame, cplfw_issame, vgg2_fp_issame = get_val_data(args.data_root)
+    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    # agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
+    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
                                            transforms.RandomHorizontalFlip(),
@@ -204,20 +206,30 @@ if __name__ == '__main__':
             print("=" * 60)
             sys.stdout.flush() 
 
-            if (bagIdx%args.test_bag==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on CFP_FP AgeDB, and Save Checkpoints...")
-                sys.stdout.flush() 
+            if (bagIdx%args.test_freq==0 and bagIdx!=0):
+                print("=" * 60, "\nEvaluation on CFP_FP JA_IVS......")
+                sys.stdout.flush()
+                accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs = perform_val(MULTI_GPU, DEVICE,     \
+                                    args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
+                buffer_val(writer, "ja-ivs", accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs, epoch + 1)
+
                 accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
                 buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
+
                 accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
                 buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
+                print("Epoch %d/%d, Evaluation: JA_IVS Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
+
                 print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, AgeDB Acc: %.4f"%(epoch + 1,     \
                        args.num_epoch, accuracy_cfp_fp, accuracy_agedb))
+                       
                 print("=" * 60)
                 sys.stdout.flush() 
 
+            if (bagIdx%args.save_freq==0 and bagIdx!=0):
+                print("Save Checkpoints Batch %d..."%batch)
                 if MULTI_GPU:
                     torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, \
                               "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \

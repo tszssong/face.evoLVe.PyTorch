@@ -61,10 +61,12 @@ def get_val_pair(path, name):
         loadfile = open(path+'/'+name, 'rb')
         carray,issame = pickle.load(loadfile)
         carray = carray.astype(np.float32)
-        issame = issame.astype(np.float32)
+        issame = issame.astype(np.int64)
         for idx in range(carray.shape[0]):
             carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx]) )
-    
+
+        print(len(carray), len(issame))
+        print( type(issame[0]), issame[0] )
     return carray, issame
 
 def get_val_pair_img(path, name):
@@ -92,23 +94,19 @@ def get_val_pair_pickl(path, name):
     loadfile = open(path+'/'+name, 'rb')
     carray,issame = pickle.load(loadfile)
     carray = carray.astype(np.float32)
-    issame = issame.astype(np.float32)
+    issame = issame.astype(np.int64)
     for idx in range(carray.shape[0]):
         carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx])+0.00001 )
 
-        # carray[idx][0] = ( carray[idx][0]-np.mean(carray[idx][0]) ) / ( np.max(carray[idx][0])-np.min(carray[idx][0])+0.00001 )
-        # carray[idx][1] = ( carray[idx][1]-np.mean(carray[idx][1]) ) / ( np.max(carray[idx][1])-np.min(carray[idx][1])+0.00001 )
-        # carray[idx][2] = ( carray[idx][0]-np.mean(carray[idx][2]) ) / ( np.max(carray[idx][2])-np.min(carray[idx][2])+0.00001 )
     print(type(carray), type(issame))
     print(len(carray), len(issame))
     print( type(issame[0]), issame[0] )
-    # t_carry = torch.tensor(carray)
-    # print(type(t_carry))
+   
     np_carry = np.array(carray)
     print(type(np_carry),np_carry.shape)
     for idx in range(np_carry.shape[0]):
         im = np_carry[idx]
-        # print(im.shape)
+        print(issame[int(idx/2)])
         im = im*127.5 + 127.5
         im = im.astype(np.uint8)
         im = np.transpose(im, (1,2,0))
@@ -127,8 +125,8 @@ def get_jaivs_var_lists(path):
     nlist = []
     for i in range(1572000, 1576000):
         imgname = str(i) + '.jpg'
-        try:
-            idImg = Image.open(path + '/ids/JPEGImages/' + imgname) #.convert('RGB')
+        try:                             #Do not need to convert rgb, test do it [2,1,0]
+            idImg = Image.open(path + '/ids/JPEGImages/' + imgname)     #.convert('RGB')
             spotImg = Image.open(path + '/spots/JPEGImages/' + imgname) 
         except:
             print(imgname, "not exits, skip!!!")
@@ -157,7 +155,6 @@ def get_jaivs_var_lists(path):
     return alist, plist, nlist
 
 def gen_jaivs_var_data(path, name):
-    totalpairs = 0
     alist, plist, nlist = get_jaivs_var_lists(path)
     assert(len(alist)==len(plist))
     array = np.zeros([4*len(alist), 3, 112, 112]).astype(np.uint8)
@@ -166,16 +163,18 @@ def gen_jaivs_var_data(path, name):
         a = cv2.imread(alist[idx])
         p = cv2.imread(plist[idx])
         n = cv2.imread(nlist[idx])
+
         a=a.transpose((2,0,1))
         p=p.transpose((2,0,1))
         n=n.transpose((2,0,1))
-        array[idx] = a
-        array[idx+1] = p
-        array[idx+2] = a
-        array[idx+3] = n
+
+        array[4*idx] = a
+        array[4*idx+1] = p
+        array[4*idx+2] = a
+        array[4*idx+3] = n
         
-        issame[idx] = 1
-        issame[idx] = 0
+        issame[2*idx] = 1
+        issame[2*idx+1] = 0
 
     print(len(issame), len(plist))
     outputfile = open(path+'/'+name+'.pkl', 'wb')
