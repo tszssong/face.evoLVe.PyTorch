@@ -207,23 +207,23 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on CFP_FP JA_IVS......")
+                print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS......")
                 sys.stdout.flush()
                 accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
-                buffer_val(writer, "ja-ivs", accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs, epoch + 1)
+                buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs, epoch + 1)
 
                 accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
                 buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
 
-                accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE,     \
-                                    args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-                buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
-                print("Epoch %d/%d, Evaluation: JA_IVS Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
+                # accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE,     \
+                #                     args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
+                # buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
+                # print("Epoch %d/%d, Evaluation: JA_IVS Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
 
-                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, AgeDB Acc: %.4f"%(epoch + 1,     \
-                       args.num_epoch, accuracy_cfp_fp, accuracy_agedb))
+                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f"%(epoch + 1,     \
+                       args.num_epoch, accuracy_cfp_fp, accuracy_jaivs))
                        
                 print("=" * 60)
                 sys.stdout.flush() 
