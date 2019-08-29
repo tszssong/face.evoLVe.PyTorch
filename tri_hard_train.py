@@ -220,7 +220,7 @@ if __name__ == '__main__':
                 buffer_val(writer, "CFP_FP", accuracy_ww1, best_threshold_ww1, epoch + 1)
 
                 print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f, WW1 Acc: %.4f" \
-                    %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_ww1, accuracy_ww1))
+                    %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_jaivs, accuracy_ww1))
                 print("=" * 60)
                 sys.stdout.flush() 
 
