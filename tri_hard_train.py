@@ -90,11 +90,10 @@ if __name__ == '__main__':
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    # lfw, cfp_ff, cfp_fp, agedb, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, \
-    #      agedb_issame, calfw_issame, cplfw_issame, vgg2_fp_issame = get_val_data(args.data_root)
     cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    # agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
                                            transforms.RandomHorizontalFlip(),
@@ -115,10 +114,10 @@ if __name__ == '__main__':
         for l_idx in range(len(lrStages)):
             if epoch == lrStages[l_idx]:
                 schedule_lr(OPTIMIZER)
-        losses = AverageMeter()
-        acc   = AverageMeter()
         for inputs, labels in iter(train_loader):  #bag_data
             start = time.time()
+            losses = AverageMeter()
+            acc   = AverageMeter()
             bagIdx += 1
             features = torch.empty(bagSize, args.embedding_size)
             BACKBONE.eval()  # set to testing mode
@@ -200,14 +199,13 @@ if __name__ == '__main__':
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
                   " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) )
-            print('Epoch: {}/{} \t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+            print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS......")
+                print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS, gl2ms1mdl23f1ww1......")
                 sys.stdout.flush()
                 accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
@@ -217,14 +215,12 @@ if __name__ == '__main__':
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
                 buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
 
-                # accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE,     \
-                #                     args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-                # buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
-                # print("Epoch %d/%d, Evaluation: JA_IVS Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
+                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,  \
+                                    args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
+                buffer_val(writer, "CFP_FP", accuracy_homo, best_threshold_homo, epoch + 1)
 
-                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f"%(epoch + 1,\
-                       args.num_epoch, accuracy_cfp_fp, accuracy_jaivs))
-                       
+                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f, WW1 Acc: %.4f" \
+                    %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_ww1, accuracy_ww1))
                 print("=" * 60)
                 sys.stdout.flush() 
 

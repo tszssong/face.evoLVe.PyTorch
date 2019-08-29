@@ -175,7 +175,58 @@ def gen_jaivs_var_data(path, name):
     outputfile = open(path+'/'+name+'.pkl', 'wb')
     pickle.dump((array,issame),outputfile)
     outputfile.close()
-      
+
+def gen_valHomo_data(path, name):
+    with open(path + '/gl2ms1mdl23f1ww1.lst') as fp:
+        lines = fp.readlines()
+        maxId = 2600
+        array = np.zeros([4*maxId, 3, 112, 112]).astype(np.uint8)
+        issame = np.zeros(2*maxId).astype(np.uint8)
+        lastLabel = 100
+        data_idx = 0
+        for idx in range(len(lines)):
+            a_path, a_label = lines[idx].strip().split(' ')
+            if lastLabel == a_label:
+                continue
+            lastLabel = a_label
+            p_path, p_label = lines[idx+1].strip().split(' ')
+            if not a_label==p_label:
+                continue
+            if idx + 100 < len(lines):
+                n_path, n_label = lines[idx+100].strip().split(' ')
+            else:
+                n_path, n_label = lines[idx-5000].strip().split(' ')
+            if a_label==n_label:
+                continue
+            
+            a = cv2.imread(a_path)
+            p = cv2.imread(p_path)
+            n = cv2.imread(n_path)
+            # cv2.imshow('a', a)
+            # cv2.imshow('p', p)
+            # cv2.imshow('n', n)
+            # cv2.waitKey()
+            a=a.transpose((2,0,1))
+            p=p.transpose((2,0,1))
+            n=n.transpose((2,0,1))
+            
+            array[4*data_idx] = a
+            array[4*data_idx+1] = p
+            array[4*data_idx+2] = a
+            array[4*data_idx+3] = n
+            
+            issame[2*data_idx] = 1
+            issame[2*data_idx+1] = 0
+            data_idx += 1
+            print("processed id:", int(lastLabel))
+            if data_idx >= maxId:
+                break
+
+    print(len(issame), len(array))
+    outputfile = open(path+'/'+name, 'wb')
+    pickle.dump((array,issame),outputfile)
+    outputfile.close()
+         
 def get_val_data(data_path):
     lfw, lfw_issame = get_val_pair(data_path, 'lfw')
     cfp_ff, cfp_ff_issame = get_val_pair(data_path, 'cfp_ff')
@@ -188,7 +239,6 @@ def get_val_data(data_path):
     return lfw, cfp_ff, cfp_fp, agedb_30, calfw, cplfw, vgg2_fp, \
            lfw_issame, cfp_ff_issame, cfp_fp_issame, agedb_30_issame, \
            calfw_issame, cplfw_issame, vgg2_fp_issame
-
 
 def separate_irse_bn_paras(modules):
     if not isinstance(modules, list):
@@ -227,8 +277,7 @@ def warm_up_lr(batch, num_batch_warm_up, init_lr, optimizer):
     for params in optimizer.param_groups:
         params['lr'] = batch * init_lr / num_batch_warm_up
 
-    # print(optimizer)
-
+    print(optimizer)
 
 def schedule_lr(optimizer):
     for params in optimizer.param_groups:
@@ -373,7 +422,9 @@ def accuracy(output, target, topk=(1,)):
 
 if __name__ == '__main__':
     print("utils")
+    gen_valHomo_data('/home/ubuntu/zms/data/ms1m_emore_img', 'gl2ms1mdl23f1ww1.pkl')
+    get_val_pair_pickl('/home/ubuntu/zms/data/ms1m_emore_img','gl2ms1mdl23f1ww1.pkl')
     # gen_jaivs_var_data('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs')
-    get_val_pair_pickl('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs.pkl')
+    # get_val_pair_pickl('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs.pkl')
     # get_val_pair_img('/home/ubuntu/zms/data/ms1m_emore100/', 'vgg2_fp')
     # get_val_pair_img('/home/ubuntu/zms/data/ms1m_emore100/', 'agedb_30')
