@@ -14,13 +14,8 @@ from PIL import Image
 import bcolz
 import io
 
-
-# Support: ['get_time', 'l2_norm', 'make_weights_for_balanced_classes', 'get_val_pair', 'get_val_data', 'separate_irse_bn_paras', 'separate_resnet_bn_paras', 'warm_up_lr', 'schedule_lr', 'de_preprocess', 'hflip_batch', 'ccrop_batch', 'gen_plot', 'perform_val', 'buffer_val', 'AverageMeter', 'accuracy']
-
-
 def get_time():
     return (str(datetime.now())[:-10]).replace(' ', '-').replace(':', '-')
-
 
 def l2_norm(input, axis = 1):
     norm = torch.norm(input, 2, axis, True)
@@ -190,7 +185,9 @@ def get_val_data(data_path):
     cplfw, cplfw_issame = get_val_pair(data_path, 'cplfw')
     vgg2_fp, vgg2_fp_issame = get_val_pair(data_path, 'vgg2_fp')
 
-    return lfw, cfp_ff, cfp_fp, agedb_30, calfw, cplfw, vgg2_fp, lfw_issame, cfp_ff_issame, cfp_fp_issame, agedb_30_issame, calfw_issame, cplfw_issame, vgg2_fp_issame
+    return lfw, cfp_ff, cfp_fp, agedb_30, calfw, cplfw, vgg2_fp, \
+           lfw_issame, cfp_ff_issame, cfp_fp_issame, agedb_30_issame, \
+           calfw_issame, cplfw_issame, vgg2_fp_issame
 
 
 def separate_irse_bn_paras(modules):
@@ -331,17 +328,14 @@ def perform_val(multi_gpu, device, embedding_size, batch_size, backbone, \
                 embeddings[idx:] = l2_norm(backbone(ccropped.to(device))).cpu()
 
     tpr, fpr, accuracy, best_thresholds = evaluate(embeddings, issame, nrof_folds)
-    buf = gen_plot(fpr, tpr)
-    roc_curve = Image.open(buf)
-    roc_curve_tensor = transforms.ToTensor()(roc_curve)
-
-    return accuracy.mean(), best_thresholds.mean(), roc_curve_tensor
+    
+    return accuracy.mean(), best_thresholds.mean()
 
 
-def buffer_val(writer, db_name, acc, best_threshold, roc_curve_tensor, epoch):
+def buffer_val(writer, db_name, acc, best_threshold,  epoch):
     writer.add_scalar('{}_Accuracy'.format(db_name), acc, epoch)
     writer.add_scalar('{}_Best_Threshold'.format(db_name), best_threshold, epoch)
-    writer.add_image('{}_ROC_Curve'.format(db_name), roc_curve_tensor, epoch)
+    # writer.add_image('{}_ROC_Curve'.format(db_name), roc_curve_tensor, epoch)
 
 
 class AverageMeter(object):

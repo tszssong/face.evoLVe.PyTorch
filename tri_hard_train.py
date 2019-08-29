@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--bag-size', type=int, default=600)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--lr-stages', type=str, default="120000, 165000, 195000")
+    parser.add_argument('--lr-stages', type=str, default="3, 6, 9")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--num-epoch', type=int, default=1000)
@@ -209,20 +209,20 @@ if __name__ == '__main__':
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
                 print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS......")
                 sys.stdout.flush()
-                accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs = perform_val(MULTI_GPU, DEVICE,     \
+                accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
-                buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, roc_curve_jaivs, epoch + 1)
+                buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
 
-                accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
+                accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-                buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
+                buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
 
                 # accuracy_agedb, best_threshold_agedb, roc_curve_agedb = perform_val(MULTI_GPU, DEVICE,     \
                 #                     args.embedding_size, args.batch_size, BACKBONE, agedb, agedb_issame)
                 # buffer_val(writer, "AgeDB", accuracy_agedb, best_threshold_agedb, roc_curve_agedb, epoch + 1)
                 # print("Epoch %d/%d, Evaluation: JA_IVS Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
 
-                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f"%(epoch + 1,     \
+                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f"%(epoch + 1,\
                        args.num_epoch, accuracy_cfp_fp, accuracy_jaivs))
                        
                 print("=" * 60)
