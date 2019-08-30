@@ -116,8 +116,6 @@ if __name__ == '__main__':
                 schedule_lr(OPTIMIZER)
         for inputs, labels in iter(train_loader):  #bag_data
             start = time.time()
-            losses = AverageMeter()
-            acc   = AverageMeter()
             bagIdx += 1
             features = torch.empty(bagSize, args.embedding_size)
             BACKBONE.eval()  # set to testing mode
@@ -149,18 +147,11 @@ if __name__ == '__main__':
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
                     p_idx = p_dist.argmax()
-                    #numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
-                    # numCandidate = 1
-                    # p_candidate = p_dist.argsort()[-numCandidate:]
-                    # p_idx = np.random.choice( p_candidate )
                 
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
                 n_idx = n_dist.argmin()
-                # numCandidate = int( max(1, bagSize*0.1) )
-                # numCandidate = 1
-                # n_candidate = n_dist.argsort()[ :numCandidate ]    
-                # n_idx = np.random.choice(n_candidate)
+                
                 bagIn[a_idx*3]   = inputs[a_idx]
                 bagIn[a_idx*3+1] = inputs[p_idx]
                 bagIn[a_idx*3+2] = inputs[n_idx]
@@ -169,6 +160,8 @@ if __name__ == '__main__':
                 bagLabel[a_idx*3+2] = labels[n_idx]
                 
             BACKBONE.train()  # set to training mode
+            losses = AverageMeter()
+            acc   = AverageMeter()
             for b_idx in range(int(bagSize/batchSize)): 
                 _begin = int(3*b_idx*batchSize)
                 _end = int(3*(b_idx+1)*batchSize)
@@ -200,7 +193,8 @@ if __name__ == '__main__':
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
-                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) , loss.data.item())
+                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
+            print("loss=%.4f, acc=%.4f"%(loss, prec))
             print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
@@ -217,9 +211,9 @@ if __name__ == '__main__':
                                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
                 buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
 
-                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,  \
+                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
                                     args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
-                buffer_val(writer, "CFP_FP", accuracy_ww1, best_threshold_ww1, epoch + 1)
+                buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
 
                 print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f, WW1 Acc: %.4f" \
                     %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_jaivs, accuracy_ww1))
