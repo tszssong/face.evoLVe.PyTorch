@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
-    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33..pth')
+    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--head-resume-root', type=str, default='')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
@@ -42,8 +42,8 @@ if __name__ == '__main__':
     parser.add_argument('--num-epoch', type=int, default=1000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
-    parser.add_argument('--save-freq', type=int, default=2)
-    parser.add_argument('--test-freq', type=int, default=4)
+    parser.add_argument('--save-freq', type=int, default=20)
+    parser.add_argument('--test-freq', type=int, default=40)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
     margin = args.margin
@@ -148,17 +148,19 @@ if __name__ == '__main__':
                     p_idx = a_idx
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
+                    p_idx = p_dist.argmax()
                     #numCandidate = int( max(1, 0.5*np.where(baglabel_1v==a_label)[0].shape[0]) )
-                    numCandidate = 1
-                    p_candidate = p_dist.argsort()[-numCandidate:]
-                    p_idx = np.random.choice( p_candidate )
+                    # numCandidate = 1
+                    # p_candidate = p_dist.argsort()[-numCandidate:]
+                    # p_idx = np.random.choice( p_candidate )
                 
                 # TODO: incase batch_size < class id images
-                n_dist[ np.where(baglabel_1v==a_label) ] = np.NaN    #fill same ids with a bigNumber
+                n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
+                n_idx = n_dist.argmin()
                 # numCandidate = int( max(1, bagSize*0.1) )
-                numCandidate = 1
-                n_candidate = n_dist.argsort()[ :numCandidate ]    
-                n_idx = np.random.choice(n_candidate)
+                # numCandidate = 1
+                # n_candidate = n_dist.argsort()[ :numCandidate ]    
+                # n_idx = np.random.choice(n_candidate)
                 bagIn[a_idx*3]   = inputs[a_idx]
                 bagIn[a_idx*3+1] = inputs[p_idx]
                 bagIn[a_idx*3+2] = inputs[n_idx]
@@ -198,7 +200,7 @@ if __name__ == '__main__':
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
-                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) )
+                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start) , loss.data.item())
             print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
