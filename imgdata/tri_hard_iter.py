@@ -58,7 +58,7 @@ class TripletHardImgData(data.Dataset):
         self.target_transform = target_transform # transform targets
         self.input_size = input_size
         if use_list:
-            samples = self._read_paths(root)
+            samples= self._read_paths(root)
         else:
             classes, class_to_idx = self._find_classes(self.root)
             samples = make_dataset(root, class_to_idx, extensions=IMG_EXTENSIONS)
@@ -69,6 +69,9 @@ class TripletHardImgData(data.Dataset):
             self.classes = classes
         self.samples = samples                 # samples is a list like below:
         self.targets = [s[1] for s in samples] # targets is a list with ids
+        
+        # print(self.samples)
+        
        
     def _find_classes(self, dir):
         if sys.version_info >= (3, 5):   # Faster and available in Python 3.5 and above
@@ -81,11 +84,21 @@ class TripletHardImgData(data.Dataset):
 
     def _read_paths(self, path):
         samples = []
+        sample_dict = {}
         with open(path, 'r') as fp:
             lines = fp.readlines()
             for line in lines:
                 [path, id] = line.strip().split(' ')
-                samples.append( ( path, int(id) ) )    # match torchvison Folder fomat 
+                # samples.append( ( path, int(id) ) )    # match torchvison Folder fomat 
+                if int(id) in sample_dict:
+                    sample_dict[int(id)].append(path)
+                else:
+                    sample_dict[int(id)]=[path]
+        ids = [key for key in sample_dict.keys()]
+        random.shuffle(ids)
+        for id in ids:
+            for path in sample_dict[id]:
+                samples.append((path, id))
         return samples 
 
     def __getitem__(self, index):
@@ -104,7 +117,7 @@ if __name__=='__main__':
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100/')
     parser.add_argument('--batch-size', type=int, default=12)
     parser.add_argument('--image-size', default=[112, 112])
-    parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--model-path', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33..pth')
     parser.add_argument('--bag-size', type=int, default=120)
     args = parser.parse_args()
     im_width = args.image_size[0]
@@ -128,8 +141,8 @@ if __name__=='__main__':
     ])
     
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), model, \
-                    batch_size = args.batch_size, bag_size = args.bag_size, input_size = [112,112], \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
+                    input_size = [112,112], \
                     transform=train_transform, use_list=True)
 
     train_loader = torch.utils.data.DataLoader(
@@ -142,7 +155,7 @@ if __name__=='__main__':
     embeddings = np.zeros([args.batch_size*3, embedding_size])
     for epoch in range(600000):
         print("epoch %d"%epoch)
-        dataset_train.reset(model, DEVICE)
+        # dataset_train.reset(model, DEVICE)
         for inputs, labels in iter(train_loader):
             a = inputs[0]
             p = inputs[1]
