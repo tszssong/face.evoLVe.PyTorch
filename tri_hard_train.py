@@ -1,4 +1,5 @@
 import os, sys, time, os.path, argparse, socket
+import random
 import numpy as np
 import torch
 import torch.nn as nn
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--bag-size', type=int, default=600)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--lr-stages', type=str, default="3, 6, 9")
+    parser.add_argument('--lr-stages', type=str, default="0")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--num-epoch', type=int, default=1000)
@@ -84,9 +85,10 @@ if __name__ == '__main__':
     else:
         LOSS = eval(args.loss_name)(args.margin)
 
-    OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
-                           {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
-    
+    # OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
+    #                        {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
+    OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
+                           {'params': backbone_paras_only_bn}], lr = args.lr)
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
@@ -113,11 +115,11 @@ if __name__ == '__main__':
 
     for epoch in range(args.num_epoch): # start training process
         for inputs, labels in iter(train_loader):  #bag_data
+            bagIdx += 1
             for l_idx in range(len(lrStages)):
                 if bagIdx == lrStages[l_idx]:
                     schedule_lr(OPTIMIZER)
             start = time.time()
-            bagIdx += 1
             features = torch.empty(bagSize, args.embedding_size)
             BACKBONE.eval()  # set to testing mode
 
@@ -145,12 +147,19 @@ if __name__ == '__main__':
                 # TODO:  skip 1 img/id
                 if(np.sum(baglabel_1v==a_label) == 1):
                     p_idx = a_idx
+                # elif(np.sum(baglabel_1v==a_label) == 2):
+                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
+                #     p_idx = p_dist.argmax()
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
+                    # p_dist[p_dist.argmax()]=0
                     p_idx = p_dist.argmax()
                 
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
+                # r=random.randint(0,3)
+                # for i in range(r):
+                #     n_dist[n_dist.argmin()]=8192
                 n_idx = n_dist.argmin()
                 
                 bagIn[a_idx*3]   = inputs[a_idx]
