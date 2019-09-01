@@ -58,10 +58,9 @@ def get_val_pair(path, name):
         carray = carray.astype(np.float32)
         issame = issame.astype(np.int64)
         for idx in range(carray.shape[0]):
-            carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx]) )
+            carray[idx] = ( carray[idx]-np.mean(carray[idx]) ) / ( np.max(carray[idx])-np.min(carray[idx])+2**-30 )
 
-        print(len(carray), len(issame))
-        print( type(issame[0]), issame[0] )
+    print(name,':', len(carray), len(issame))
     return carray, issame
 
 def get_val_pair_img(path, name):
