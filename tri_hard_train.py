@@ -85,10 +85,10 @@ if __name__ == '__main__':
     else:
         LOSS = eval(args.loss_name)(args.margin)
 
-    # OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
-    #                        {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
-    OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
-                           {'params': backbone_paras_only_bn}], lr = args.lr)
+    OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
+                           {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
+    # OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
+    #                        {'params': backbone_paras_only_bn}], lr = args.lr)
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
@@ -147,19 +147,29 @@ if __name__ == '__main__':
                 # TODO:  skip 1 img/id
                 if(np.sum(baglabel_1v==a_label) == 1):
                     p_idx = a_idx
+                elif(np.sum(baglabel_1v==a_label) > 3):
+                    p_dist[np.where(baglabel_1v!=a_label)] = 0
+                    r=random.randint(1,3)
+                    for i in range(r):
+                        p_dist[p_dist.argmax()] = 0
+                    p_idx = p_dist.argmax()
+                else:
+                    p_dist[np.where(baglabel_1v!=a_label)] = 0
+                    p_idx = p_dist.argmax()
+
                 # elif(np.sum(baglabel_1v==a_label) == 2):
                 #     p_dist[np.where(baglabel_1v!=a_label)] = 0
                 #     p_idx = p_dist.argmax()
-                else:
-                    p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    # p_dist[p_dist.argmax()]=0
-                    p_idx = p_dist.argmax()
+                # else:
+                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
+                #     p_dist[p_dist.argmax()]=0
+                #     p_idx = p_dist.argmax()
                 
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
-                # r=random.randint(0,3)
-                # for i in range(r):
-                #     n_dist[n_dist.argmin()]=8192
+                r=random.randint(0,3)
+                for i in range(r):
+                    n_dist[n_dist.argmin()]=8192
                 n_idx = n_dist.argmin()
                 
                 bagIn[a_idx*3]   = inputs[a_idx]
