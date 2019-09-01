@@ -103,7 +103,7 @@ if __name__ == '__main__':
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
-                 shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
+                 shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
     print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
     sys.stdout.flush()  
     
@@ -215,7 +215,7 @@ if __name__ == '__main__':
                                     args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
                 buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
 
-                print("Epoch %d/%d, Evaluation: CFP_FP Acc: %.4f, JA_IVS Acc: %.4f, WW1 Acc: %.4f" \
+                print("Epoch %d/%d, CFP_FP: %.4f, JA_IVS: %.4f, WW1 Acc: %.4f" \
                     %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_jaivs, accuracy_ww1))
                 print("=" * 60)
                 sys.stdout.flush() 
