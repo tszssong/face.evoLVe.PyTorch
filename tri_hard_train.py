@@ -137,8 +137,10 @@ if __name__ == '__main__':
             np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
            
-            bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
-            bagLabel = torch.LongTensor(bagSize*3, 1)
+            # bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
+            # bagLabel = torch.LongTensor(bagSize*3, 1)
+            bagIn = torch.empty((1,3,INPUT_SIZE[0], INPUT_SIZE[1]), dtype=inputs.dtype)
+            bagLabel = torch.empty((1,1), dtype=labels.dtype)
             nCount = 0
             flag = False
             for a_idx in range( bagSize ):
@@ -159,17 +161,21 @@ if __name__ == '__main__':
                     else:
                         n_idx = np.random.choice(n_candidate)
                     # print(nCount,":", a_idx, p_idx, n_idx, n_candidate.size)
-                    
-                    bagIn[nCount*3]   = inputs[a_idx]
-                    bagIn[nCount*3+1] = inputs[p_idx]
-                    bagIn[nCount*3+2] = inputs[n_idx]
-                    bagLabel[nCount*3]   = labels[a_idx]
-                    bagLabel[nCount*3+1] = labels[p_idx]
-                    bagLabel[nCount*3+2] = labels[n_idx]
+                    if nCount == 0:
+                        bagIn = inputs[a_idx].reshape(bagIn.shape)
+                        bagLabel = labels[a_idx].reshape(bagLabel.shape)
+                    else:
+                        bagIn = torch.cat( (bagIn, inputs[a_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
+                        bagLabel = torch.cat( (bagLabel, labels[a_idx].reshape(1,1) ))
+                    bagIn = torch.cat( (bagIn, inputs[p_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
+                    bagIn = torch.cat( (bagIn, inputs[n_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
+                    bagLabel = torch.cat( (bagLabel, labels[p_idx].reshape(1,1)) )
+                    bagLabel = torch.cat( (bagLabel, labels[n_idx].reshape(1,1)) )
+
                     nCount+=1
-                    if(nCount>=bagSize):
-                        flag = True
-                        break
+                    # if(nCount>=bagSize):
+                    #     flag = True
+                    #     break
 
                 
             BACKBONE.train()  # set to training mode
