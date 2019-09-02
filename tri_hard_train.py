@@ -33,8 +33,8 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=120)
-    parser.add_argument('--bag-size', type=int, default=600)
+    parser.add_argument('--batch-size', type=int, default=12)
+    parser.add_argument('--bag-size', type=int, default=60)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="0")
@@ -92,9 +92,9 @@ if __name__ == '__main__':
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    # jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -141,14 +141,16 @@ if __name__ == '__main__':
             # bagLabel = torch.LongTensor(bagSize*3, 1)
             bagIn = torch.empty((1,3,INPUT_SIZE[0], INPUT_SIZE[1]), dtype=inputs.dtype)
             bagLabel = torch.empty((1,1), dtype=labels.dtype)
-            nCount = 0
+            nCount = 0    #number of valid triplets
             flag = False
             for a_idx in range( bagSize ):
                 a_label = baglabel_1v[a_idx]
                 p_candidate = np.where(baglabel_1v==a_label)[0]
                 p_candidate = p_candidate[p_candidate>a_idx]
+                pCount = 0
                 for p_idx in p_candidate:
-                    if flag:
+                    pCount += 1       # positive index 7*7 TODO
+                    if pCount > 7:
                         break
                     pDist = dist_matrix[a_idx][p_idx]
                     assert pDist>0.02
@@ -161,6 +163,7 @@ if __name__ == '__main__':
                     else:
                         n_idx = np.random.choice(n_candidate)
                     # print(nCount,":", a_idx, p_idx, n_idx, n_candidate.size)
+
                     if nCount == 0:
                         bagIn = inputs[a_idx].reshape(bagIn.shape)
                         bagLabel = labels[a_idx].reshape(bagLabel.shape)
@@ -173,15 +176,12 @@ if __name__ == '__main__':
                     bagLabel = torch.cat( (bagLabel, labels[n_idx].reshape(1,1)) )
 
                     nCount+=1
-                    # if(nCount>=bagSize):
-                    #     flag = True
-                    #     break
-
-                
+                    
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            for b_idx in range(int(bagSize/batchSize)): 
+            print("train bag %d with size:%d"%(bagIdx, bagLabel.shape[0]))
+            for b_idx in range(int(bagLabel.shape[0]/3/batchSize)): 
                 _begin = int(3*b_idx*batchSize)
                 _end = int(3*(b_idx+1)*batchSize)
                 bIn = bagIn[_begin:_end,:].to(DEVICE)
