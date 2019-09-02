@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
-    parser.add_argument('--backbone-resume-root', type=str, default='../home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--head-resume-root', type=str, default='')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
@@ -92,9 +92,9 @@ if __name__ == '__main__':
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    # jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -139,45 +139,38 @@ if __name__ == '__main__':
            
             bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
             bagLabel = torch.LongTensor(bagSize*3, 1)
+            nCount = 0
+            flag = False
             for a_idx in range( bagSize ):
-                p_dist = dist_matrix[a_idx].copy()
-                n_dist = dist_matrix[a_idx]
                 a_label = baglabel_1v[a_idx]
-                
-                # TODO:  skip 1 img/id
-                if(np.sum(baglabel_1v==a_label) == 1):
-                    p_idx = a_idx
-                elif(np.sum(baglabel_1v==a_label) > 3):
-                    p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    r=random.randint(1,3)
-                    for i in range(r):
-                        p_dist[p_dist.argmax()] = 0
-                    p_idx = p_dist.argmax()
-                else:
-                    p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    p_idx = p_dist.argmax()
+                p_candidate = np.where(baglabel_1v==a_label)[0]
+                p_candidate = p_candidate[p_candidate>a_idx]
+                for p_idx in p_candidate:
+                    if flag:
+                        break
+                    pDist = dist_matrix[a_idx][p_idx]
+                    assert pDist>0.02
+                    distTh = pDist + args.margin
+                    n_candidate =  np.where( 
+                        np.logical_and(dist_matrix[a_idx]<distTh, baglabel_1v!=a_label) )[0]
+                    
+                    if(n_candidate.size<=0):
+                        continue
+                    else:
+                        n_idx = np.random.choice(n_candidate)
+                    # print(nCount,":", a_idx, p_idx, n_idx, n_candidate.size)
+                    
+                    bagIn[nCount*3]   = inputs[a_idx]
+                    bagIn[nCount*3+1] = inputs[p_idx]
+                    bagIn[nCount*3+2] = inputs[n_idx]
+                    bagLabel[nCount*3]   = labels[a_idx]
+                    bagLabel[nCount*3+1] = labels[p_idx]
+                    bagLabel[nCount*3+2] = labels[n_idx]
+                    nCount+=1
+                    if(nCount>=bagSize):
+                        flag = True
+                        break
 
-                # elif(np.sum(baglabel_1v==a_label) == 2):
-                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                #     p_idx = p_dist.argmax()
-                # else:
-                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                #     p_dist[p_dist.argmax()]=0
-                #     p_idx = p_dist.argmax()
-                
-                # TODO: incase batch_size < class id images
-                n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
-                r=random.randint(0,3)
-                for i in range(r):
-                    n_dist[n_dist.argmin()]=8192
-                n_idx = n_dist.argmin()
-                
-                bagIn[a_idx*3]   = inputs[a_idx]
-                bagIn[a_idx*3+1] = inputs[p_idx]
-                bagIn[a_idx*3+2] = inputs[n_idx]
-                bagLabel[a_idx*3]   = labels[a_idx]
-                bagLabel[a_idx*3+1] = labels[p_idx]
-                bagLabel[a_idx*3+2] = labels[n_idx]
                 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
