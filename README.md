@@ -10,5 +10,4 @@
 - utils/test_ja.py 测试  
 
 #### TODO  
-  需要按id shuffle    
   margin自适应， 连续5个epoch 精度大于0.95后margin+1  
