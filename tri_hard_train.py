@@ -92,9 +92,9 @@ if __name__ == '__main__':
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    # jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -137,12 +137,8 @@ if __name__ == '__main__':
             np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
            
-            # bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
-            # bagLabel = torch.LongTensor(bagSize*3, 1)
-            bagIn = torch.empty((1,3,INPUT_SIZE[0], INPUT_SIZE[1]), dtype=inputs.dtype)
-            bagLabel = torch.empty((1,1), dtype=labels.dtype)
             nCount = 0    #number of valid triplets
-            flag = False
+            bagList = []
             for a_idx in range( bagSize ):
                 a_label = baglabel_1v[a_idx]
                 p_candidate = np.where(baglabel_1v==a_label)[0]
@@ -163,30 +159,20 @@ if __name__ == '__main__':
                     else:
                         n_idx = np.random.choice(n_candidate)
                     # print(nCount,":", a_idx, p_idx, n_idx, n_candidate.size)
-
-                    if nCount == 0:
-                        bagIn = inputs[a_idx].reshape(bagIn.shape)
-                        bagLabel = labels[a_idx].reshape(bagLabel.shape)
-                    else:
-                        bagIn = torch.cat( (bagIn, inputs[a_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
-                        bagLabel = torch.cat( (bagLabel, labels[a_idx].reshape(1,1) ))
-                    bagIn = torch.cat( (bagIn, inputs[p_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
-                    bagIn = torch.cat( (bagIn, inputs[n_idx].reshape(1,3, INPUT_SIZE[0], INPUT_SIZE[1])) )
-                    bagLabel = torch.cat( (bagLabel, labels[p_idx].reshape(1,1)) )
-                    bagLabel = torch.cat( (bagLabel, labels[n_idx].reshape(1,1)) )
-
+                    bagList.append((a_idx, p_idx, n_idx))
                     nCount+=1
                     
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
             print("train bag %d with size:%d"%(bagIdx, bagLabel.shape[0]))
-            for b_idx in range(int(bagLabel.shape[0]/3/batchSize)): 
-                _begin = int(3*b_idx*batchSize)
-                _end = int(3*(b_idx+1)*batchSize)
-                bIn = bagIn[_begin:_end,:].to(DEVICE)
-                bLabel = bagLabel[_begin:_end, :].to(DEVICE)
-                
+            for b_idx in range(int(nCount/batchSize)): 
+                batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
+                batch_idx = np.array(batch_idx).flatten()
+                # print(batch_idx)
+                bIn = inputs[batch_idx].to(DEVICE)
+                bLabel = labels[batch_idx].to(DEVICE)
+                                
                 outputs = BACKBONE(bIn)
                 # show batch data: only ubuntu
                 if hostname=="ubuntu-System-Product-Name":
