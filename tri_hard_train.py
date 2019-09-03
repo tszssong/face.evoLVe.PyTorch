@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=12)
-    parser.add_argument('--bag-size', type=int, default=6000)
+    parser.add_argument('--bag-size', type=int, default=1000)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="0")
@@ -147,7 +147,7 @@ if __name__ == '__main__':
                 else:
                     aCount = 0
                 if aCount > 7:
-                    break
+                    continue
                 last_a_label = a_label
                 p_candidate = np.where(baglabel_1v==a_label)[0]
                 p_candidate = p_candidate[p_candidate>a_idx]
