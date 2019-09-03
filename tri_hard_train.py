@@ -161,7 +161,7 @@ if __name__ == '__main__':
                     pDist = dist_matrix[a_idx][p_idx]
                     distTh = pDist + args.margin
                     n_candidate =  np.where( 
-                        np.logical_and(dist_matrix[a_idx]<distTh, baglabel_1v!=a_label) )[0]
+                        np.logical_and(dist_matrix[a_idx]<distTh, dist_matrix[a_idx]>pDist, baglabel_1v!=a_label) )[0]
                     
                     if(n_candidate.size<=0):
                         continue
@@ -173,7 +173,7 @@ if __name__ == '__main__':
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            print("train bag %d with size:%d"%(bagIdx, 3*nCount))
+            print("train bag %d with size:%d"%(bagIdx, nCount))
             for b_idx in range(int(nCount/batchSize)): 
                 batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
                 batch_idx = np.array(batch_idx).flatten()
