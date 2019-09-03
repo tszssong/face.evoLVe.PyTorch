@@ -47,6 +47,7 @@ class TripletLoss(nn.Module):
             distances = distance_positive - distance_negative + self.margin
         else:
             distances = distance_positive - distance_negative + m
-        losses = F.relu(distances)
+        # losses = F.relu(distances)
+        losses = F.leaky_relu(distances)
         return losses.mean(), losses 
 

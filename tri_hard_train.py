@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=12)
     parser.add_argument('--bag-size', type=int, default=1000)
     parser.add_argument('--margin', type=float, default=0.3)
-    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--lr-stages', type=str, default="0")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -160,8 +160,9 @@ if __name__ == '__main__':
                         break
                     pDist = dist_matrix[a_idx][p_idx]
                     distTh = pDist + args.margin
-                    n_candidate =  np.where( 
-                        np.logical_and(dist_matrix[a_idx]<distTh, dist_matrix[a_idx]>pDist, baglabel_1v!=a_label) )[0]
+                    n_candidate =  np.where( np.logical_and( dist_matrix[a_idx]<distTh, 
+                                                             dist_matrix[a_idx]>pDist, 
+                                                             baglabel_1v!=a_label) )[0]
                     
                     if(n_candidate.size<=0):
                         continue
@@ -173,7 +174,6 @@ if __name__ == '__main__':
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            print("train bag %d with size:%d"%(bagIdx, nCount))
             for b_idx in range(int(nCount/batchSize)): 
                 batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
                 batch_idx = np.array(batch_idx).flatten()
@@ -190,7 +190,7 @@ if __name__ == '__main__':
            
                 loss, loss_batch = LOSS(outputs, bLabel, DEVICE, margin)
                 loss_batch = loss_batch.detach().cpu().numpy()
-                n_err = np.where(loss_batch!=0)[0].shape[0] 
+                n_err = np.where(loss_batch>0)[0].shape[0] 
                 prec = 1.0 - float(n_err) / loss_batch.shape[0]
                 
                 losses.update(loss.data.item(), bIn.size(0))
@@ -208,8 +208,8 @@ if __name__ == '__main__':
             bag_acc = acc.avg
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
-            print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
-                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
+            print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), \
+                  " Bag:%d - %d, Batch:%d "%(bagIdx, nCount, batch), "%.3f s/bag"%(time.time()-start))
        
             print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
@@ -217,7 +217,7 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on JA_IVS......")
+                print("\nEvaluation on JA_IVS......")
                 sys.stdout.flush()
                 accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
@@ -231,12 +231,11 @@ if __name__ == '__main__':
                 # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
                 # print("Epoch %d/%d, CFP_FP: %.4f,"%(epoch + 1, args.num_epoch, accuracy_cfp_fp) )
 
-                # print("=" * 60, "\nEvaluation on gl2ms1mdl23f1ww1......")
-                # sys.stdout.flush()
-                # accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
-                #                     args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
-                # buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
-                # print("Epoch %d/%d, gmcf Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_ww1) )
+                print("=" * 60, "\nEvaluation on gl2ms1mdl23f1ww1......")
+                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
+                                    args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
+                buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
+                print("Epoch %d/%d, gmcf Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_ww1) )
                 sys.stdout.flush() 
 
             if (bagIdx%args.save_freq==0 and bagIdx!=0):
