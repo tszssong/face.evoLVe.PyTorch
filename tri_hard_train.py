@@ -93,7 +93,7 @@ if __name__ == '__main__':
     sys.stdout.flush() 
 
     # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    # jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
     # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
