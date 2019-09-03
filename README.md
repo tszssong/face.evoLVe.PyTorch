@@ -9,6 +9,7 @@ same as facenet as far as we can
 
 #### 测试  
 - utils/test_ja.py 测试  
+  gmcf表示glintv2_ms1m_dl23f1_150WW1
 
 #### TODO  
   margin自适应， 连续5个epoch 精度大于0.95后margin+1  

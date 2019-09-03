@@ -44,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--save-freq', type=int, default=20)
-    parser.add_argument('--disp-freq', type=int, default=20)
+    parser.add_argument('--disp-freq', type=int, default=10)
     parser.add_argument('--test-freq', type=int, default=400)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
