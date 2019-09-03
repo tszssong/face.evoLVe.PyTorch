@@ -44,6 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--save-freq', type=int, default=20)
+    parser.add_argument('--disp-freq', type=int, default=20)
     parser.add_argument('--test-freq', type=int, default=400)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
@@ -199,37 +200,43 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
-          
+                if batch%args.disp_freq==0:
+                    print('Batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                        'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
+                    
             bag_loss = losses.avg
             bag_acc = acc.avg
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
                   " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
-            # print("loss=%.4f, acc=%.4f"%(loss, prec))
+       
             print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS, gl2ms1mdl23f1ww1......")
+                print("=" * 60, "\nEvaluation on JA_IVS......")
                 sys.stdout.flush()
                 accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
                 buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
+                print("Epoch %d/%d, JA_IVS: %.4f"%(epoch + 1, args.num_epoch,accuracy_jaivs) )
 
-                accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
-                                    args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-                buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
+                # print("=" * 60, "\nEvaluation on CFP_FP......")
+                # sys.stdout.flush()
+                # accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
+                #                     args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
+                # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
+                # print("Epoch %d/%d, CFP_FP: %.4f,"%(epoch + 1, args.num_epoch, accuracy_cfp_fp) )
 
-                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
-                                    args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
-                buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
-
-                print("Epoch %d/%d, CFP_FP: %.4f, JA_IVS: %.4f, WW1 Acc: %.4f" \
-                    %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_jaivs, accuracy_ww1))
-                print("=" * 60)
+                # print("=" * 60, "\nEvaluation on gl2ms1mdl23f1ww1......")
+                # sys.stdout.flush()
+                # accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
+                #                     args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
+                # buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
+                # print("Epoch %d/%d, gmcf Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_ww1) )
                 sys.stdout.flush() 
 
             if (bagIdx%args.save_freq==0 and bagIdx!=0):
