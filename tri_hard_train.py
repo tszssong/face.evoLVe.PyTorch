@@ -165,7 +165,7 @@ if __name__ == '__main__':
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            print("train bag %d with size:%d"%(bagIdx, bagLabel.shape[0]))
+            print("train bag %d with size:%d"%(bagIdx, nCount))
             for b_idx in range(int(nCount/batchSize)): 
                 batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
                 batch_idx = np.array(batch_idx).flatten()
