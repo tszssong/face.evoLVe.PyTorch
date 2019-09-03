@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=12)
-    parser.add_argument('--bag-size', type=int, default=60)
+    parser.add_argument('--bag-size', type=int, default=6000)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="0")
@@ -50,8 +50,7 @@ if __name__ == '__main__':
     margin = args.margin
     batchSize = args.batch_size
     bagSize = args.bag_size
-    assert bagSize%batchSize == 0
-    # assert batchSize%3 == 0 #triplet
+    
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
    
@@ -139,9 +138,17 @@ if __name__ == '__main__':
            
             nCount = 0    #number of valid triplets
             bagList = []
-            # aCount = 0
+            aCount = 0
+            last_a_label = 0
             for a_idx in range( bagSize ):
                 a_label = baglabel_1v[a_idx]
+                if last_a_label==a_label:
+                    aCount +=1
+                else:
+                    aCount = 0
+                if aCount > 7:
+                    break
+                last_a_label = a_label
                 p_candidate = np.where(baglabel_1v==a_label)[0]
                 p_candidate = p_candidate[p_candidate>a_idx]
                 np.random.shuffle(p_candidate)
@@ -151,7 +158,6 @@ if __name__ == '__main__':
                     if pCount > 7:
                         break
                     pDist = dist_matrix[a_idx][p_idx]
-                    assert pDist>0.02
                     distTh = pDist + args.margin
                     n_candidate =  np.where( 
                         np.logical_and(dist_matrix[a_idx]<distTh, baglabel_1v!=a_label) )[0]
@@ -166,7 +172,7 @@ if __name__ == '__main__':
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            print("train bag %d with size:%d"%(bagIdx, nCount))
+            print("train bag %d with size:%d"%(bagIdx, 3*nCount))
             for b_idx in range(int(nCount/batchSize)): 
                 batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
                 batch_idx = np.array(batch_idx).flatten()
