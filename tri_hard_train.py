@@ -139,10 +139,12 @@ if __name__ == '__main__':
            
             nCount = 0    #number of valid triplets
             bagList = []
+            # aCount = 0
             for a_idx in range( bagSize ):
                 a_label = baglabel_1v[a_idx]
                 p_candidate = np.where(baglabel_1v==a_label)[0]
                 p_candidate = p_candidate[p_candidate>a_idx]
+                np.random.shuffle(p_candidate)
                 pCount = 0
                 for p_idx in p_candidate:
                     pCount += 1       # positive index 7*7 TODO
@@ -158,7 +160,6 @@ if __name__ == '__main__':
                         continue
                     else:
                         n_idx = np.random.choice(n_candidate)
-                    # print(nCount,":", a_idx, p_idx, n_idx, n_candidate.size)
                     bagList.append((a_idx, p_idx, n_idx))
                     nCount+=1
                     
