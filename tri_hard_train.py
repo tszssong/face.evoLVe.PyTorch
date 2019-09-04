@@ -33,10 +33,10 @@ if __name__ == '__main__':
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=12)
+    parser.add_argument('--batch-size', type=int, default=60)
     parser.add_argument('--bag-size', type=int, default=1000)
     parser.add_argument('--margin', type=float, default=0.3)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="0")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
@@ -70,7 +70,10 @@ if __name__ == '__main__':
      # optionally resume from a checkpoint
     if args.backbone_resume_root and os.path.isfile(args.backbone_resume_root):
         print("Loading Backbone Checkpoint '{}'".format(args.backbone_resume_root))
-        BACKBONE.load_state_dict(torch.load(args.backbone_resume_root)) 
+        # pretrained_net = torch.load(args.backbone_resume_root)
+        # for key, v in pretrained_net.items():
+        #     print (key)
+        BACKBONE.load_state_dict(torch.load(args.backbone_resume_root), strict=False) 
     else:
         print("No Checkpoint, Train from Scratch" )
 

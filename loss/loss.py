@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.nn import  PReLU
 # Support: ['FocalLoss', 'TripletLoss']
 
 class FocalLoss(nn.Module):
@@ -47,7 +47,9 @@ class TripletLoss(nn.Module):
             distances = distance_positive - distance_negative + self.margin
         else:
             distances = distance_positive - distance_negative + m
-        # losses = F.relu(distances)
-        losses = F.leaky_relu(distances)
+        losses = F.relu(distances)
+        # m=PReLU
+        # losses = PReLU(distances)
+        # losses = F.prelu(distances)
         return losses.mean(), losses 
 
