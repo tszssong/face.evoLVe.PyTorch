@@ -70,9 +70,7 @@ class TripletHardImgData(data.Dataset):
         self.samples = samples                 # samples is a list like below:
         self.targets = [s[1] for s in samples] # targets is a list with ids
         
-        # print(self.samples)
         
-       
     def _find_classes(self, dir):
         if sys.version_info >= (3, 5):   # Faster and available in Python 3.5 and above
             classes = [d.name for d in os.scandir(dir) if d.is_dir()]

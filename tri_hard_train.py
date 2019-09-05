@@ -28,7 +28,6 @@ if __name__ == '__main__':
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
     parser.add_argument('--backbone-resume-root', type=str, default='../home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--head-resume-root', type=str, default='')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
@@ -87,14 +86,13 @@ if __name__ == '__main__':
 
     OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
                            {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
-    # OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn, 'weight_decay': args.weight_decay}, \
-    #                        {'params': backbone_paras_only_bn}], lr = args.lr)
+   
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
 
-    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    #cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -102,7 +100,7 @@ if __name__ == '__main__':
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
    
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'part_imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
@@ -137,8 +135,8 @@ if __name__ == '__main__':
             np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
            
-            bagIn = torch.empty(bagSize*3,3,INPUT_SIZE[0],INPUT_SIZE[1])
-            bagLabel = torch.LongTensor(bagSize*3, 1)
+            nCount = 0
+            bagList = []
             for a_idx in range( bagSize ):
                 p_dist = dist_matrix[a_idx].copy()
                 n_dist = dist_matrix[a_idx]
@@ -156,14 +154,6 @@ if __name__ == '__main__':
                 else:
                     p_dist[np.where(baglabel_1v!=a_label)] = 0
                     p_idx = p_dist.argmax()
-
-                # elif(np.sum(baglabel_1v==a_label) == 2):
-                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                #     p_idx = p_dist.argmax()
-                # else:
-                #     p_dist[np.where(baglabel_1v!=a_label)] = 0
-                #     p_dist[p_dist.argmax()]=0
-                #     p_idx = p_dist.argmax()
                 
                 # TODO: incase batch_size < class id images
                 n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
@@ -172,22 +162,19 @@ if __name__ == '__main__':
                     n_dist[n_dist.argmin()]=8192
                 n_idx = n_dist.argmin()
                 
-                bagIn[a_idx*3]   = inputs[a_idx]
-                bagIn[a_idx*3+1] = inputs[p_idx]
-                bagIn[a_idx*3+2] = inputs[n_idx]
-                bagLabel[a_idx*3]   = labels[a_idx]
-                bagLabel[a_idx*3+1] = labels[p_idx]
-                bagLabel[a_idx*3+2] = labels[n_idx]
+                bagList.append((a_idx,p_idx,n_idx))
+                nCount += 1
                 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
-            for b_idx in range(int(bagSize/batchSize)): 
-                _begin = int(3*b_idx*batchSize)
-                _end = int(3*(b_idx+1)*batchSize)
-                bIn = bagIn[_begin:_end,:].to(DEVICE)
-                bLabel = bagLabel[_begin:_end, :].to(DEVICE)
-                
+            np.random.shuffle(bagList)
+            for b_idx in range(int(nCount/batchSize)): 
+                batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
+                batch_idx = np.array(batch_idx).flatten()
+                bIn = inputs[batch_idx].to(DEVICE)
+                bLabel = labels[batch_idx].to(DEVICE)
+               
                 outputs = BACKBONE(bIn)
                 # show batch data: only ubuntu
                 if hostname=="ubuntu-System-Product-Name":
@@ -221,22 +208,10 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("=" * 60, "\nEvaluation on CFP_FP, JA_IVS, gl2ms1mdl23f1ww1......")
-                sys.stdout.flush()
                 accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
                 buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
-
-                accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE,  \
-                                    args.embedding_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-                buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
-
-                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
-                                    args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
-                buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
-
-                print("Epoch %d/%d, CFP_FP: %.4f, JA_IVS: %.4f, WW1 Acc: %.4f" \
-                    %(epoch + 1, args.num_epoch, accuracy_cfp_fp, accuracy_jaivs, accuracy_ww1))
+                print("Epoch %d/%d, JA_IVS: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
                 print("=" * 60)
                 sys.stdout.flush() 
 

@@ -1,4 +1,5 @@
 *.pth
+*.code-workspace.code-workspace
 *.idea
 *.pyc
 *__pycache__*
