@@ -25,8 +25,8 @@ class BasicBlock(Module):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = BatchNorm2d(planes)
-        # self.relu = ReLU(inplace = True)
-        self.relu = PReLU()
+        self.relu = ReLU(inplace = True)
+        # self.relu = PReLU()
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = BatchNorm2d(planes)
         self.downsample = downsample
@@ -62,8 +62,8 @@ class Bottleneck(Module):
         self.bn2 = BatchNorm2d(planes)
         self.conv3 = conv1x1(planes, planes * self.expansion)
         self.bn3 = BatchNorm2d(planes * self.expansion)
-        # self.relu = ReLU(inplace = True)
-        self.relu = PReLU()
+        self.relu = ReLU(inplace = True)
+        # self.relu = PReLU()
         self.downsample = downsample
         self.stride = stride
 
@@ -98,8 +98,8 @@ class ResNet(Module):
         self.inplanes = 64
         self.conv1 = Conv2d(3, 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
         self.bn1 = BatchNorm2d(64)
-        # self.relu = ReLU(inplace = True)
-        self.relu = PReLU()
+        self.relu = ReLU(inplace = True)
+        # self.relu = PReLU()
         self.maxpool = MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride = 2)

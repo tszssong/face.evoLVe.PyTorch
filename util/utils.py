@@ -176,9 +176,10 @@ def gen_jaivs_var_data(path, name):
     outputfile.close()
 
 def gen_valHomo_data(path, name):
-    with open(path + '/gl2ms1mdl23f1ww1.lst') as fp:
+    with open(path + '/test.lst') as fp:
         lines = fp.readlines()
-        maxId = 2600
+        maxId = int(lines[-1].strip().split(' ')[-1]) # 2600
+        print("generating test pkl with %d ids"%(maxId))
         array = np.zeros([4*maxId, 3, 112, 112]).astype(np.uint8)
         issame = np.zeros(2*maxId).astype(np.uint8)
         lastLabel = 100
@@ -201,10 +202,7 @@ def gen_valHomo_data(path, name):
             a = cv2.imread(a_path)
             p = cv2.imread(p_path)
             n = cv2.imread(n_path)
-            # cv2.imshow('a', a)
-            # cv2.imshow('p', p)
-            # cv2.imshow('n', n)
-            # cv2.waitKey()
+            
             a=a.transpose((2,0,1))
             p=p.transpose((2,0,1))
             n=n.transpose((2,0,1))
@@ -421,8 +419,10 @@ def accuracy(output, target, topk=(1,)):
 
 if __name__ == '__main__':
     print("utils")
-    gen_valHomo_data('/home/ubuntu/zms/data/ms1m_emore_img', 'gl2ms1mdl23f1ww1.pkl')
-    get_val_pair_pickl('/home/ubuntu/zms/data/ms1m_emore_img','gl2ms1mdl23f1ww1.pkl')
+    gen_valHomo_data('/home/ubuntu/zms/data/jr-pairs-2w', 'jr7.pkl')
+    get_val_pair_pickl('/home/ubuntu/zms/data/jr-pairs-2w','jr7.pkl')
+    # gen_valHomo_data('/home/ubuntu/zms/data/ms1m_emore_img', 'gl2ms1mdl23f1ww1.pkl')
+    # get_val_pair_pickl('/home/ubuntu/zms/data/ms1m_emore_img','gl2ms1mdl23f1ww1.pkl')
     # gen_jaivs_var_data('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs')
     # get_val_pair_pickl('/home/ubuntu/zms/data/ja-ivs-test3','ja_ivs.pkl')
     # get_val_pair_img('/home/ubuntu/zms/data/ms1m_emore100/', 'vgg2_fp')

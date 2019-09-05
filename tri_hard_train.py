@@ -24,7 +24,8 @@ torch.manual_seed(1337)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
+    # parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100')
+    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/jr-pairs-2w')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
     parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
@@ -37,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--bag-size', type=int, default=1000)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--lr-stages', type=str, default="0")
+    parser.add_argument('--lr-stages', type=str, default="40, 100, 200, 300")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--num-epoch', type=int, default=1000)
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--save-freq', type=int, default=20)
     parser.add_argument('--disp-freq', type=int, default=10)
-    parser.add_argument('--test-freq', type=int, default=400)
+    parser.add_argument('--test-freq', type=int, default=10)
     args = parser.parse_args()
     writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
     margin = args.margin
@@ -96,8 +97,9 @@ if __name__ == '__main__':
     sys.stdout.flush() 
 
     # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    # jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
+    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
+    homo, homo_issame = get_val_pair(args.data_root, 'homo.pkl')
 
     train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
                                            transforms.RandomCrop(INPUT_SIZE),
@@ -131,9 +133,13 @@ if __name__ == '__main__':
                 batchFea = BACKBONE(batchIn.to(DEVICE))
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
-           
+                
+            features = features.double()   #float type products -Inf
             dist_matrix = torch.mm(features, features.t())
-            dist_matrix = 2-dist_matrix
+            #sometimes 1-1.0000 got a negative number, don't know why????......
+            dist_matrix = 2.0*(1.0 - dist_matrix)  
+            dist_matrix = torch.abs(dist_matrix)
+            dist_matrix = torch.sqrt(dist_matrix)
             dist_matrix = dist_matrix.numpy()
             assert dist_matrix.shape[0] == bagSize
 
@@ -175,6 +181,7 @@ if __name__ == '__main__':
                     nCount+=1
                     
             BACKBONE.train()  # set to training mode
+            np.random.shuffle(bagList)
             losses = AverageMeter()
             acc   = AverageMeter()
             for b_idx in range(int(nCount/batchSize)): 
@@ -203,6 +210,7 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
+                # print(loss.data.item(), prec)
                 if batch%args.disp_freq==0:
                     print('Batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                         'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
@@ -220,12 +228,12 @@ if __name__ == '__main__':
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
-                print("\nEvaluation on JA_IVS......")
-                sys.stdout.flush()
-                accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
-                                    args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
-                buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
-                print("Epoch %d/%d, JA_IVS: %.4f"%(epoch + 1, args.num_epoch,accuracy_jaivs) )
+                # print("\nEvaluation on JA_IVS......")
+                # sys.stdout.flush()
+                # accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
+                #                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
+                # buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
+                # print("Epoch %d/%d, JA_IVS: %.4f"%(epoch + 1, args.num_epoch,accuracy_jaivs) )
 
                 # print("=" * 60, "\nEvaluation on CFP_FP......")
                 # sys.stdout.flush()
@@ -234,11 +242,17 @@ if __name__ == '__main__':
                 # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, epoch + 1)
                 # print("Epoch %d/%d, CFP_FP: %.4f,"%(epoch + 1, args.num_epoch, accuracy_cfp_fp) )
 
-                print("=" * 60, "\nEvaluation on gl2ms1mdl23f1ww1......")
-                accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
-                                    args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
-                buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
-                print("Epoch %d/%d, gmcf Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_ww1) )
+                # print("=" * 60, "\nEvaluation on gl2ms1mdl23f1ww1......")
+                # accuracy_ww1, best_threshold_ww1 = perform_val(MULTI_GPU, DEVICE,        \
+                #                     args.embedding_size, args.batch_size, BACKBONE, ww1, ww1_issame)
+                # buffer_val(writer, "WW1", accuracy_ww1, best_threshold_ww1, epoch + 1)
+                # print("Epoch %d/%d, gmcf Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_ww1) )
+
+                print("=" * 60, "\nEvaluation on homo ...")
+                accuracy_homo, best_threshold_homo = perform_val(MULTI_GPU, DEVICE,        \
+                                    args.embedding_size, args.batch_size, BACKBONE, homo, homo_issame)
+                buffer_val(writer, "homo", accuracy_homo, best_threshold_homo, epoch + 1)
+                print("Epoch %d/%d, homo Acc: %.4f"%(epoch + 1, args.num_epoch, accuracy_homo) )
                 sys.stdout.flush() 
 
             if (bagIdx%args.save_freq==0 and bagIdx!=0):
