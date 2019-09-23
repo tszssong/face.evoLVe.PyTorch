@@ -49,7 +49,7 @@ if __name__ == '__main__':
     margin = args.margin
     batchSize = args.batch_size
     bagSize = args.bag_size
-    assert bagSize%batchSize == 0
+    # assert bagSize%batchSize == 0
     # assert batchSize%3 == 0 #triplet
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
@@ -161,7 +161,11 @@ if __name__ == '__main__':
                 for i in range(r):
                     n_dist[n_dist.argmin()]=8192
                 n_idx = n_dist.argmin()
-                
+                n =  n_dist[n_idx]
+                p =  p_dist[p_idx]
+                m = margin*margin
+                if( n - p - m > 0 and n>p):
+                    continue
                 bagList.append((a_idx,p_idx,n_idx))
                 nCount += 1
                 
@@ -197,6 +201,9 @@ if __name__ == '__main__':
           
             bag_loss = losses.avg
             bag_acc = acc.avg
+            # if(bag_acc>=0.9 and margin<0.9):
+            #     margin += 0.02
+            #     print("margin:", margin)
             writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
             writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
