@@ -19,6 +19,7 @@ from tensorboardX import SummaryWriter
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.show_img import showBatch
+from imgdata.select_triplets import select_triplets
 hostname = socket.gethostname()
 torch.manual_seed(1337)
 
@@ -49,7 +50,8 @@ if __name__ == '__main__':
     margin = args.margin
     batchSize = args.batch_size
     bagSize = args.bag_size
-    # assert bagSize%batchSize == 0
+    assert bagSize%batchSize == 0   # necessary: forward use bagSize/batchSize
+
     # assert batchSize%3 == 0 #triplet
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
@@ -100,7 +102,7 @@ if __name__ == '__main__':
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
    
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'part_imgs.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs10w.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
@@ -127,48 +129,16 @@ if __name__ == '__main__':
                 batchFea = F.normalize(batchFea).detach()
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
            
-            dist_matrix = torch.mm(features, features.t())
-            dist_matrix = 2-dist_matrix
-            dist_matrix = dist_matrix.numpy()
-            assert dist_matrix.shape[0] == bagSize
+            # dist_matrix = torch.mm(features, features.t())
+            # dist_matrix = 2-dist_matrix
+            # dist_matrix = dist_matrix.numpy()
+            # assert dist_matrix.shape[0] == bagSize
 
-            np.set_printoptions(suppress=True)
+            # np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
-           
-            nCount = 0
-            bagList = []
-            for a_idx in range( bagSize ):
-                p_dist = dist_matrix[a_idx].copy()
-                n_dist = dist_matrix[a_idx]
-                a_label = baglabel_1v[a_idx]
-                
-                # TODO:  skip 1 img/id
-                if(np.sum(baglabel_1v==a_label) == 1):
-                    p_idx = a_idx
-                elif(np.sum(baglabel_1v==a_label) > 3):
-                    p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    r=random.randint(1,3)
-                    for i in range(r):
-                        p_dist[p_dist.argmax()] = 0
-                    p_idx = p_dist.argmax()
-                else:
-                    p_dist[np.where(baglabel_1v!=a_label)] = 0
-                    p_idx = p_dist.argmax()
-                
-                # TODO: incase batch_size < class id images
-                n_dist[ np.where(baglabel_1v==a_label) ] = 8192 #np.NaN    #fill same ids with a bigNumber
-                r=random.randint(0,3)
-                for i in range(r):
-                    n_dist[n_dist.argmin()]=8192
-                n_idx = n_dist.argmin()
-                n =  n_dist[n_idx]
-                p =  p_dist[p_idx]
-                m = margin*margin
-                if( n - p - m > 0 and n>p):
-                    continue
-                bagList.append((a_idx,p_idx,n_idx))
-                nCount += 1
-                
+            
+            bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 40) # torch tensor
+                            
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc   = AverageMeter()
@@ -198,7 +168,9 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
-          
+                print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                  'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
+                sys.stdout.flush()
             bag_loss = losses.avg
             bag_acc = acc.avg
             # if(bag_acc>=0.9 and margin<0.9):
