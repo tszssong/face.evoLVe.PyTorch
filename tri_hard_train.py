@@ -15,7 +15,7 @@ from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_S
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
-from tensorboardX import SummaryWriter
+
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.show_img import showBatch
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-freq', type=int, default=20)
     parser.add_argument('--test-freq', type=int, default=400)
     args = parser.parse_args()
-    writer = SummaryWriter(args.log_root) # writer for buffering intermedium results
+   
     margin = args.margin
     batchSize = args.batch_size
     bagSize = args.bag_size
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
    
-    DEVICE =  torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    DEVICE =  torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     GPU_ID = [int(i) for i in args.gpu_ids.split(",") ]
     print(DEVICE, GPU_ID)
     MULTI_GPU = ( len(GPU_ID)>1 ) # flag to use multiple GPUs
@@ -96,8 +96,8 @@ if __name__ == '__main__':
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
     # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
-    train_transform = transforms.Compose([ transforms.Resize([128, 128]),     # smaller side resized
-                                           transforms.RandomCrop(INPUT_SIZE),
+    train_transform = transforms.Compose([ #transforms.Resize([128, 128]),     # smaller side resized
+                                           #transforms.RandomCrop(INPUT_SIZE),
                                            transforms.RandomHorizontalFlip(),
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
@@ -126,22 +126,16 @@ if __name__ == '__main__':
             for b_idx in range(int(bagSize/batchSize)):
                 batchIn = inputs[b_idx*batchSize:(b_idx+1)*batchSize,:]
                 batchFea = BACKBONE(batchIn.to(DEVICE))
-                batchFea = F.normalize(batchFea).detach()
+                batchFea = F.normalize(batchFea).detach()    #if bagSize > 2w, to(cpu)
                 features[b_idx*batchSize:(b_idx+1)*batchSize,:] = batchFea
            
-            # dist_matrix = torch.mm(features, features.t())
-            # dist_matrix = 2-dist_matrix
-            # dist_matrix = dist_matrix.numpy()
-            # assert dist_matrix.shape[0] == bagSize
-
-            # np.set_printoptions(suppress=True)
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
             bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 40) # torch tensor
                             
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
-            acc   = AverageMeter()
+            acc    = AverageMeter()
             np.random.shuffle(bagList)
             for b_idx in range(int(nCount/batchSize)): 
                 batch_idx = bagList[b_idx*batchSize:(b_idx+1)*batchSize]
@@ -150,12 +144,7 @@ if __name__ == '__main__':
                 bLabel = labels[batch_idx].to(DEVICE)
                
                 outputs = BACKBONE(bIn)
-                # show batch data: only ubuntu
-                if hostname=="ubuntu-System-Product-Name":
-                    features = F.normalize(outputs).detach()
-                    showBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
-                              features.cpu().numpy(), show_x=args.batch_size)
-           
+                           
                 loss, loss_batch = LOSS(outputs, bLabel, DEVICE, margin)
                 loss_batch = loss_batch.detach().cpu().numpy()
                 n_err = np.where(loss_batch!=0)[0].shape[0] 
@@ -173,11 +162,7 @@ if __name__ == '__main__':
                 sys.stdout.flush()
             bag_loss = losses.avg
             bag_acc = acc.avg
-            # if(bag_acc>=0.9 and margin<0.9):
-            #     margin += 0.02
-            #     print("margin:", margin)
-            writer.add_scalar("Training_Loss", bag_loss, epoch + 1)
-            writer.add_scalar("Training_Accuracy", bag_acc, epoch + 1)
+            
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
                   " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
             # print("loss=%.4f, acc=%.4f"%(loss, prec))
@@ -189,7 +174,6 @@ if __name__ == '__main__':
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
                 accuracy_jaivs, best_threshold_jaivs = perform_val(MULTI_GPU, DEVICE,     \
                                     args.embedding_size, args.batch_size, BACKBONE, jaivs, jaivs_issame)
-                buffer_val(writer, "JA_IVS", accuracy_jaivs, best_threshold_jaivs, epoch + 1)
                 print("Epoch %d/%d, JA_IVS: %.4f"%(epoch + 1, args.num_epoch, accuracy_jaivs))
                 print("=" * 60)
                 sys.stdout.flush() 
