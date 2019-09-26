@@ -58,7 +58,7 @@ class TripletHardImgData(data.Dataset):
         self.target_transform = target_transform # transform targets
         self.input_size = input_size
         if use_list:
-            samples= self._read_paths(root)
+            samples, sample_dicts = self._read_paths(root)
         else:
             classes, class_to_idx = self._find_classes(self.root)
             samples = make_dataset(root, class_to_idx, extensions=IMG_EXTENSIONS)
@@ -68,6 +68,7 @@ class TripletHardImgData(data.Dataset):
             self.class_to_idx = class_to_idx
             self.classes = classes
         self.samples = samples                 # samples is a list like below:
+        self.sample_dict = sample_dicts
         self.targets = [s[1] for s in samples] # targets is a list with ids
         
         
@@ -97,7 +98,16 @@ class TripletHardImgData(data.Dataset):
         for id in ids:
             for path in sample_dict[id]:
                 samples.append((path, id))
-        return samples 
+        return samples , sample_dict
+
+    def reset(self):
+        self.samples = []
+        ids = [key for key in self.sample_dict.keys()]
+        random.shuffle(ids)
+        for id in ids:
+            for path in self.sample_dict[id]:
+                self.samples.append((path, id))
+        print("shuffled:", len(self.samples))
 
     def __getitem__(self, index):
         path, target = self.samples[index]
@@ -139,7 +149,7 @@ if __name__=='__main__':
     ])
     
     # dataset_train = TripletHardImgData(os.path.join(args.data_root, 'imgs'), model, transform=train_transform, use_list=False)
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs10.lst'), \
                     input_size = [112,112], \
                     transform=train_transform, use_list=True)
 
