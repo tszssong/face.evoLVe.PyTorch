@@ -3,7 +3,7 @@ import numpy as np
 import random
 import time,sys
 #2-1;3-3;4-6;5-10;6-15;7-21;8-28;9-36;10-45;11-55
-d_lut = {2:50,3:51,4:8,5:5,6:4,7:3,8:2,9:2}
+d_lut = {2:40,3:14,4:7,5:4,6:3,7:2}
 def get_num_per_id(labels):
     label_dict = {}
     for id in labels:
@@ -29,7 +29,7 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
             num_id  = label_dict[a_label]
             if num_id < 2:
                 continue
-            elif num_id < 10:
+            elif num_id < 8:
                 num_rep = d_lut[num_id]
             else:
                 p_skip = round( (num_id*(num_id-1)/2.0) / id_per_batch )

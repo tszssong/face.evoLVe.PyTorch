@@ -102,7 +102,7 @@ if __name__ == '__main__':
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
    
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs10w.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
