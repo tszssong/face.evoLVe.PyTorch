@@ -1,5 +1,6 @@
 # pytorch 版人脸识别 from ZhaoJ-face.evoLVe  
 #### 结构  
+![bottleneck](disp/backbone_difference.jpg)
 - resnet是原始resnet网络  
 - IR是insightface里的resnet
 #### 训练  
