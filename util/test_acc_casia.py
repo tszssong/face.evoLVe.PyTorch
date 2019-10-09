@@ -186,6 +186,7 @@ def getFarValues(FARs,FARArry,TPRArry,AccArry,ThrArry):
     txtname = args.model.split('.')[0] + '_casia.txt'
     with open(txtname, 'w') as fw:
         print(args.model)
+        fw.write(args.model + '\n')
         for idx,far in enumerate(FARs):
             print('%.9f(FPR)\t(%.9f(FPR))\t@\t%f(TPR)\t%f(Acc)\twith\t%f(Thr)'%(far,rFARs[idx],TPRs[idx],ACCs[idx],Thrs[idx]))
             fw.write('%.9f(FPR)\t(%.9f(FPR))\t@\t%f(TPR)\t%f(Acc)\twith\t%f(Thr)\n'%(far,rFARs[idx],TPRs[idx],ACCs[idx],Thrs[idx]))
