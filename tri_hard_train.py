@@ -18,7 +18,7 @@ from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_p
 
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
-from imgdata.show_img import showBatch
+from imgdata.show_img import showBatch, saveBatch
 from imgdata.select_triplets import select_triplets
 hostname = socket.gethostname()
 torch.manual_seed(1337)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     lrStages = [int(i) for i in args.lr_stages.strip().split(',')]
    
-    DEVICE =  torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    DEVICE =  torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     GPU_ID = [int(i) for i in args.gpu_ids.split(",") ]
     print(DEVICE, GPU_ID)
     MULTI_GPU = ( len(GPU_ID)>1 ) # flag to use multiple GPUs
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
    
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs10w.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'part_imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
@@ -146,7 +146,11 @@ if __name__ == '__main__':
                 bLabel = labels[batch_idx].to(DEVICE)
                
                 outputs = BACKBONE(bIn)
-                           
+                if batch % 1000 == 0:
+                    bFeature = F.normalize(outputs).detach()
+                    saveBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
+                        bFeature.cpu().numpy(), show_x=10, batchIdx=batch)
+
                 loss, loss_batch = LOSS(outputs, bLabel, DEVICE, margin)
                 loss_batch = loss_batch.detach().cpu().numpy()
                 n_err = np.where(loss_batch!=0)[0].shape[0] 
@@ -159,9 +163,10 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
-                print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
-                  'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
-                sys.stdout.flush()
+                if batch % 5 == 0:
+                    print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                    'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
+                    sys.stdout.flush()
             bag_loss = losses.avg
             bag_acc = acc.avg
             

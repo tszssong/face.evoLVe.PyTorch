@@ -90,7 +90,7 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
 # test: hpcgpu40:/cloud_data01/zhengmeisong/wkspace/qh_recog_clean/deploy_st/getP5Casia/run_test_torch.sh
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/cloud_data01/StrongRootData/TestData/CASIA-IvS-Test/')
+    parser.add_argument('--data-root', type=str, default='/data3/StrongRootData/TestData/CASIA-IvS-Test/')
     parser.add_argument('--list', type=str, default='CASIA-IvS-Test-final-v3-revised.lst')
     parser.add_argument('--ft-suffix', type=str, default='.ft')
     parser.add_argument('--backbone-resume-root', type=str, default='../../models/py/r50e1b12000_082509/')
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     
     INPUT_SIZE = [ int(args.input_size.split(',')[0]), int(args.input_size.split(',')[1]) ]
     BACKBONE = eval(args.backbone_name)(INPUT_SIZE)
-    backbone_load_path = args.backbone_resume_root + args.backbone_resume_root.split('/')[-2] + '.pth'
+    backbone_load_path = args.backbone_resume_root
     if backbone_load_path and os.path.isfile(backbone_load_path):
         print("Loading Backbone Checkpoint '{}'".format(backbone_load_path))
         BACKBONE.load_state_dict(torch.load(backbone_load_path)) 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     BACKBONE.eval()
     
     start = time.time()
-    ftSaveRoot = args.backbone_resume_root + args.data_root.split('/')[-2]
+    ftSaveRoot = args.backbone_resume_root.split('.')[0]
     print("save ft to ", ftSaveRoot)
     if not os.path.isdir(ftSaveRoot):
         os.makedirs(ftSaveRoot)
