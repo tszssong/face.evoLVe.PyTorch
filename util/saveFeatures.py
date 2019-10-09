@@ -83,7 +83,8 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
             
             np.savetxt(ft_subdir + '/' + ft_name, feature)
             if(done_count%500==0):
-                print(done_count,"ft extracted")
+                print('.',end=" ")
+                # print(done_count,"ft extracted")
             done_count += 1
     return done_count
 # extra features, to be compatible with mxnet

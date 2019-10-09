@@ -20,7 +20,7 @@ args = parser.parse_args()
 def loadFeatureFromModelDir(idListFile, faceListFile,  ftExt = '.arc'):
     ftDir = None
     if not args.model =='None':
-        ftDir = args.model.split(',')[0]+'-%04d/'%int(args.model.split(',')[-1])
+        ftDir = args.model.split('.')[0]+'/'
 
     idList = open(idListFile, 'r').readlines()
     idLabel = np.zeros([len(idList)], dtype = np.int32)
@@ -31,7 +31,7 @@ def loadFeatureFromModelDir(idListFile, faceListFile,  ftExt = '.arc'):
             ftElems = ftName.split('/')
             ftName = ftDir + ftElems[-2]+'/'+ftElems[-1]
         if idx%1000==0:
-            print('.'),
+            print('.',end=' ')
             sys.stdout.flush()
         idFeat[idx,:] = np.loadtxt(ftName)[np.newaxis,:]
         idLabel[idx] = int( line.split(' ')[-1] )
@@ -45,7 +45,7 @@ def loadFeatureFromModelDir(idListFile, faceListFile,  ftExt = '.arc'):
             ftElems = ftName.split('/')
             ftName = ftDir + ftElems[-2]+'/'+ftElems[-1]
         if idx%1000==0:
-            print('.'),
+            print('.',end=' ')
             sys.stdout.flush()
         faceFeat[idx,:] = np.loadtxt(ftName)[np.newaxis,:]
         faceLabel[idx] = int( line.split(' ')[-1] )
@@ -68,7 +68,7 @@ def evaluateAllData(idListFile,faceListFile, base_dir='',ftExt='.arc'):
         fScores[idx*len_face:(idx+1)*len_face] = scores
         fIsSame[idx*len_face:(idx+1)*len_face] = isSame
         if(idx%1000==0):
-            print("."),
+            print(".",end=' ')
     minScore = np.min(fScores)
     maxScore = np.max(fScores)
     print(maxScore, minScore)
