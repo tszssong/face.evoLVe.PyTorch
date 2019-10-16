@@ -3,7 +3,7 @@ import numpy as np
 import random
 import time,sys
 #2-1;3-3;4-6;5-10;6-15;7-21;8-28;9-36;10-45;11-55
-d_lut = {2:10,3:3,4:2,5:1,6:1,7:1}
+d_lut = {2:6,3:3,4:2,5:1,6:1,7:1}
 def get_num_per_id(labels):
     label_dict = {}
     for id in labels:
@@ -51,6 +51,8 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
             p_idx = a_idx + idx
             # if (np.random.randint(1,num_id))
             p_dist = dist.numpy()[0][p_idx]
+            if(p_dist<1.3):
+                continue
             m = margin*margin
             thresh = p_dist + m
             n_candidates = np.where( np.logical_and( n_dists<thresh, n_dists>p_dist ) )[0]
