@@ -1,5 +1,5 @@
 DATAROOT=/data3/zhengmeisong/TestData/CASIA-IvS-Test/
-for pth in `cat ../../py-model/IR50.lst`
+for pth in `cat ../../py-model/IR50_v3.lst`
 do 
     echo $pth
     Model=$pth
