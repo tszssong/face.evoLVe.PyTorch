@@ -51,10 +51,9 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
             p_idx = a_idx + idx
             # if (np.random.randint(1,num_id))
             p_dist = dist.numpy()[0][p_idx]
-            if(p_dist<1.3):
+            if(p_dist>1.3):
                 continue
-            m = margin*margin
-            thresh = p_dist + m
+            thresh = p_dist + margin
             n_candidates = np.where( np.logical_and( n_dists<thresh, n_dists>p_dist ) )[0]
             
             if n_candidates.shape[0] < 1:
