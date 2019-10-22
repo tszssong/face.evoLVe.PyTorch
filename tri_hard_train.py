@@ -105,7 +105,7 @@ if __name__ == '__main__':
                                         #    transforms.RandomHorizontalFlip(),
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
-    dataset_train = ImageFolderLMDB('/home/ubuntu/zms/data/ms1m_emore100/train.lmdb', transform=train_transform)
+    dataset_train = ImageFolderLMDB(args.data_root + '/train.lmdb', transform=train_transform)
     # dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
                                 #  input_size = INPUT_SIZE, transform=train_transform)
     
