@@ -123,11 +123,6 @@ if __name__ == '__main__':
             dataset_train.reset()
         for inputs, labels in iter(train_loader):  #bag_data
             bagIdx += 1
-            print(inputs.shape, labels.shape)
-            print(type(inputs), type(labels))
-            print(inputs.dtype, labels.dtype)
-
-            print(labels)
             for l_idx in range(len(lrStages)):
                 if bagIdx == lrStages[l_idx]:
                     schedule_lr(OPTIMIZER)
