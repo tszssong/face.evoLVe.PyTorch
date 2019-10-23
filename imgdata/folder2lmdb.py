@@ -73,7 +73,7 @@ class ImageFolderLMDB(data.Dataset):
         lab_path = db_path[:-5] + "_images_lab.txt"
         img2lab = read_txt(lab_path)
         self.idx2label = match_label(img2idx, img2lab)
-        print(self.idx2label)
+        #print(self.idx2label)
 
     def __getitem__(self, index):
         img, target = None, None
