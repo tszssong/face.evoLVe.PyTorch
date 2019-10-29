@@ -13,7 +13,7 @@ def get_num_per_id(labels):
             label_dict[id] = 1
     return label_dict
 
-def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5):
+def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5):
     np.set_printoptions(suppress=True)
     assert features.shape[0] == bagSize
     label_dict = get_num_per_id(baglabel_1v)
@@ -30,9 +30,9 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
             num_rep = 1
             if num_id < 2:
                 continue
-            elif num_id < 5:
+            elif num_id <= 6:
                 num_rep = d_lut[num_id]
-            elif num_id > 7:
+            elif num_id > 6:
                 p_skip = round( (num_id*(num_id-1)/2.0) / id_per_batch )
         else:
             aid_count += 1 
@@ -47,7 +47,14 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
         n_dists = dist.numpy()[0].copy()
         n_dists[ np.where(baglabel_1v==a_label)[0] ] = -8192    #np.NaN    #fill same ids with a bigNumber
        
-        for idx in range(1, num_id-aid_count+1, p_skip):
+        # for idx in range(1, num_id-aid_count+1, p_skip):
+        for idx in range(1, num_id-aid_count+1):
+            tmp = random.randint(1,p_skip)
+            if(p_skip>1):
+                print("%d: %d"%(num_id,tmp),'-',p_skip,'-',aid_count,' '),
+                sys.stdout.flush()
+            if (tmp > 1):
+                continue 
             p_idx = a_idx + idx
             # if (np.random.randint(1,num_id))
             p_dist = dist.numpy()[0][p_idx]
@@ -66,6 +73,6 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=40,margin = 0.5
             for n_idx in n_idxs:
                 bagList.append((a_idx,p_idx,n_idx))
                 nCount += 1
-    print("bag:",bagSize , len(bagList), nCount)
+    
     sys.stdout.flush()
     return bagList, nCount

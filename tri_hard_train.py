@@ -22,6 +22,7 @@ from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_p
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
 from imgdata.folder2lmdb import ImageFolderLMDB
+from imgdata.list2lmdb import ImageListLMDB
 from imgdata.show_img import showBatch, saveBatch
 from imgdata.select_triplets import select_triplets
 hostname = socket.gethostname()
@@ -102,13 +103,16 @@ if __name__ == '__main__':
 
     train_transform = transforms.Compose([ #transforms.Resize([128, 128]),     # smaller side resized
                                            #transforms.RandomCrop(INPUT_SIZE),
-                                        #    transforms.RandomHorizontalFlip(),
+                                           transforms.RandomHorizontalFlip(),
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
-    dataset_train = ImageFolderLMDB(args.data_root + '/train.lmdb', transform=train_transform)
-    # dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
-                                #  input_size = INPUT_SIZE, transform=train_transform)
-    
+    # dataset_train = ImageListLMDB(args.data_root + '/train.lmdb', transform=train_transform)
+    # dataset_train = ImageFolderLMDB(args.data_root + '/train.lmdb', transform=train_transform)
+    # train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
+    #              shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
+
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
+                                 input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
     # print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
@@ -117,10 +121,11 @@ if __name__ == '__main__':
     print(bagSize, batchSize)
     batch = 0   # batch index
     bagIdx = 0
+    bagCount = 0
 
     for epoch in range(args.num_epoch): # start training process
-        if epoch > 0:
-            dataset_train.reset()
+        # if epoch > 0:
+        dataset_train.reset()
         for inputs, labels in iter(train_loader):  #bag_data
             bagIdx += 1
             for l_idx in range(len(lrStages)):
@@ -139,7 +144,20 @@ if __name__ == '__main__':
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
             bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 40) # torch tensor
-                            
+           
+            if(nCount < 20000):
+                bagCount += 1
+            elif(nCount > 200000 and bagIdx > 100):
+                bagCount -= 1   
+            else:
+                bagCount = 0
+            if(bagCount>3):
+                bagSize += batchSize * 100
+                bagCount = 0
+            # if(bagCount<-3 and bagSize>batchSize*100 ):
+            #     bagSize -= batchSize * 100
+                
+            print("bag:",bagSize , len(bagList), nCount, bagCount) 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc    = AverageMeter()
@@ -151,7 +169,7 @@ if __name__ == '__main__':
                 bLabel = labels[batch_idx].to(DEVICE)
                
                 outputs = BACKBONE(bIn)
-                if batch % 1 == 0:
+                if batch % 100 == 0:
                     bFeature = F.normalize(outputs).detach()
                     saveBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
                         bFeature.cpu().numpy(), show_x=10, batchIdx=batch)
