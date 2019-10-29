@@ -23,23 +23,25 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5
     for a_idx in range( bagSize ):
         p_skip = 1
         a_label = baglabel_1v[a_idx]
+        num_id  = label_dict[a_label]
+
         if a_label != last_label:
             last_label = a_label
             aid_count = 1
-            num_id  = label_dict[a_label]
-            num_rep = 1
-            if num_id < 2:
-                continue
-            elif num_id <= 6:
-                num_rep = d_lut[num_id]
-            elif num_id > 6:
-                p_skip = round( (num_id*(num_id-1)/2.0) / id_per_batch )
         else:
             aid_count += 1 
-
         if aid_count == num_id:
             continue
-        
+
+        num_rep = 1
+        if num_id < 2:
+            continue
+        elif num_id <= 6:
+            num_rep = d_lut[num_id]
+        elif num_id > 6:
+            p_skip = round( (num_id*(num_id-1)/2.0) / id_per_batch )
+
+        # print("%d,%d,%d,%d"%(a_idx, num_id, aid_count,p_skip))
         a_fea = features[a_idx].reshape(1,-1)
         aTf = torch.mm(a_fea, features.t())
         dist = 2 - 2*aTf
@@ -50,9 +52,9 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5
         # for idx in range(1, num_id-aid_count+1, p_skip):
         for idx in range(1, num_id-aid_count+1):
             tmp = random.randint(1,p_skip)
-            if(p_skip>1):
-                print("%d: %d"%(num_id,tmp),'-',p_skip,'-',aid_count,' '),
-                sys.stdout.flush()
+            # if(p_skip>1):
+            #     print("%d: %d"%(num_id,tmp),'-',p_skip,'-',aid_count,' '),
+            #     sys.stdout.flush()
             if (tmp > 1):
                 continue 
             p_idx = a_idx + idx
