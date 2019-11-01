@@ -278,6 +278,11 @@ class ResidualAttentionModel_92_32input_update(nn.Module):
 
         return out
 
+
+class Flatten(Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
+
 class RAModel_92(Module):
 
     def __init__(self, input_size):
@@ -294,21 +299,22 @@ class RAModel_92(Module):
 
         self.residual_block2 = ResidualBlock(64, 128, 2)                #28x28
         self.attention_module2 = AttentionModule_stage2(128, 128)
-        self.attention_module2_2 = AttentionModule_stage2(128, 128)  # tbq add
+        self.attention_module2_2 = AttentionModule_stage2(128, 128)     # tbq add
 
         self.residual_block3 = ResidualBlock(128, 256, 2)               #14x14
         self.attention_module3 = AttentionModule_stage3(256, 256)
-        self.attention_module3 = AttentionModule_stage3(256, 256)
+        self.attention_module3_2 = AttentionModule_stage3(256, 256)
+        self.attention_module3_3 = AttentionModule_stage3(256, 256)
 
         self.residual_block4 = ResidualBlock(256, 512, 2)              #7x7
         self.residual_block5 = ResidualBlock(512, 512)
         self.residual_block6 = ResidualBlock(512, 512)
-        self.mpool2 = nn.Sequential(
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
-            nn.AvgPool2d(kernel_size=7, stride=1)
-        )
-        # self.fc = nn.Linear(512,10689)
+        
+        self.output_layer = nn.Sequential( nn.BatchNorm2d(512),
+                                           nn.Dropout(),
+                                           Flatten(),
+                                           nn.Linear(512 * 7 * 7, 512),
+                                           nn.BatchNorm1d(512))
 
     def forward(self, x):
         out = self.conv1(x)
@@ -327,8 +333,9 @@ class RAModel_92(Module):
         out = self.residual_block4(out)
         out = self.residual_block5(out)
         out = self.residual_block6(out)
-        out = self.mpool2(out)
-        out = out.view(out.size(0), -1)
+        out = self.output_layer(out)
+        # out = self.mpool2(out)
+        # out = out.view(out.size(0), -1)
         # out = self.fc(out)
 
         return out
