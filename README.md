@@ -1,4 +1,7 @@
 # pytorch 版人脸识别 from ZhaoJ-face.evoLVe  
+#### tricks   
+lr=0.1没有warmUp的话不收敛  
+lr=0.1 + warmUp最后精度比直接用lr=0.01高   
 #### 结构  
 ![bottleneck](disp/backbone_difference.jpg)
 - resnet是原始resnet网络  
@@ -9,6 +12,7 @@
 
 - tri_train.py 用triplet loss训练  
 - tri_hard_train.py 加入难样本  
+
 
 #### 测试  
 - utils/test_ja.py 测试  
