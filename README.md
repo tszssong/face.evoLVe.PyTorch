@@ -1,5 +1,6 @@
 # pytorch 版人脸识别 from ZhaoJ-face.evoLVe  
 #### tricks   
+Softmax比其他花式loss收敛快  
 lr=0.1没有warmUp的话不收敛  
 lr=0.1 + warmUp最后精度比直接用lr=0.01高   
 #### 结构  

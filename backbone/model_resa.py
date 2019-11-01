@@ -296,10 +296,16 @@ class RAModel_92(Module):
         self.mpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)  #56x56
         self.residual_block1 = ResidualBlock(64, 64)
         self.attention_module1 = AttentionModule_stage1(64, 64)
+        self.attention_module1_2 = AttentionModule_stage1(64, 64)
+        self.attention_module1_3 = AttentionModule_stage1(64, 64)
 
         self.residual_block2 = ResidualBlock(64, 128, 2)                #28x28
         self.attention_module2 = AttentionModule_stage2(128, 128)
-        self.attention_module2_2 = AttentionModule_stage2(128, 128)     # tbq add
+        self.attention_module2_2 = AttentionModule_stage2(128, 128)
+        self.attention_module2_3 = AttentionModule_stage2(128, 128)     
+        self.attention_module2_4 = AttentionModule_stage2(128, 128)     
+        self.attention_module2_5 = AttentionModule_stage2(128, 128)     
+        self.attention_module2_6 = AttentionModule_stage2(128, 128)          
 
         self.residual_block3 = ResidualBlock(128, 256, 2)               #14x14
         self.attention_module3 = AttentionModule_stage3(256, 256)
@@ -322,9 +328,15 @@ class RAModel_92(Module):
         # print(out.data)
         out = self.residual_block1(out)
         out = self.attention_module1(out)
+        out = self.attention_module1_2(out)
+        out = self.attention_module1_3(out)
         out = self.residual_block2(out)
         out = self.attention_module2(out)
         out = self.attention_module2_2(out)
+        out = self.attention_module2_3(out)
+        out = self.attention_module2_4(out)
+        out = self.attention_module2_5(out)
+        out = self.attention_module2_6(out)
         out = self.residual_block3(out)
         # print(out.data)
         out = self.attention_module3(out)
