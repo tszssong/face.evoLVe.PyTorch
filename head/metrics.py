@@ -26,7 +26,9 @@ class Softmax(nn.Module):
         self.weight = Parameter(torch.FloatTensor(out_features, in_features))
         self.bias = Parameter(torch.FloatTensor(out_features))
         nn.init.xavier_uniform_(self.weight)
-        # nn.init.zero_(self.bias)
+        # self.bias.data.zero_()
+        # self._initialize_weights()
+        nn.init.zeros_(self.bias)
 
     def forward(self, x):
         if self.device_id == None:
@@ -44,24 +46,6 @@ class Softmax(nn.Module):
                 bias = sub_biases[i].cuda(self.device_id[i])
                 out = torch.cat((out, F.linear(temp_x, weight, bias).cuda(self.device_id[0])), dim=1)
         return out
-
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.xavier_uniform_(m.weight.data)
-                if m.bias is not None:
-                    m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm1d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-            elif isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight.data)
-                if m.bias is not None:
-                    m.bias.data.zero_()
-
 
 class ArcFace(nn.Module):
     r"""Implement of ArcFace (https://arxiv.org/pdf/1801.07698v1.pdf):
