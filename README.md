@@ -19,4 +19,4 @@ lr=0.1 + warmUp最后精度比直接用lr=0.01高
 - utils/test_ja.py 测试  
 
 #### TODO  
-  margin自适应， 连续5个epoch 精度大于0.95后margin+1  
+  网络初始化  
