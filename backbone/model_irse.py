@@ -104,6 +104,13 @@ def get_block(in_channel, depth, num_units, stride=2):
 
 
 def get_blocks(num_layers):
+    if num_layers == 18:
+        blocks = [
+            get_block(in_channel=64, depth=64, num_units=2),
+            get_block(in_channel=64, depth=128, num_units=2),
+            get_block(in_channel=128, depth=256, num_units=2),
+            get_block(in_channel=256, depth=512, num_units=2)
+        ]
     if num_layers == 50:
         blocks = [
             get_block(in_channel=64, depth=64, num_units=3),
@@ -133,7 +140,7 @@ class Backbone(Module):
     def __init__(self, input_size, num_layers, mode='ir'):
         super(Backbone, self).__init__()
         assert input_size[0] in [112, 224], "input_size should be [112, 112] or [224, 224]"
-        assert num_layers in [50, 100, 152], "num_layers should be 50, 100 or 152"
+        assert num_layers in [18, 50, 100, 152], "num_layers should be 50, 100 or 152"
         assert mode in ['ir', 'ir_se'], "mode should be ir or ir_se"
         blocks = get_blocks(num_layers)
         if mode == 'ir':
@@ -190,6 +197,13 @@ class Backbone(Module):
                 nn.init.xavier_uniform_(m.weight.data)
                 if m.bias is not None:
                     m.bias.data.zero_()
+
+def IR_18(input_size):
+    """Constructs a ir-50 model.
+    """
+    model = Backbone(input_size, 18, 'ir')
+
+    return model
 
 
 def IR_50(input_size):
