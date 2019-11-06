@@ -61,6 +61,9 @@ class InvertedResidual(nn.Module):
         else:
             return self.conv(x)
 
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
 
 class MobileNetV2(nn.Module):
     def __init__(self, num_classes=512, width_mult=1.0, inverted_residual_setting=None, round_nearest=8):
@@ -78,6 +81,7 @@ class MobileNetV2(nn.Module):
         block = InvertedResidual
         input_channel = 32
         last_channel = 1280
+        # last_channel = 512
 
         if inverted_residual_setting is None:
             inverted_residual_setting = [
@@ -99,7 +103,7 @@ class MobileNetV2(nn.Module):
         # building first layer
         input_channel = _make_divisible(input_channel * width_mult, round_nearest)
         self.last_channel = _make_divisible(last_channel * max(1.0, width_mult), round_nearest)
-        features = [ConvBNReLU(3, input_channel, stride=2)]
+        features = [ConvBNReLU(3, input_channel, stride=1)]
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
             output_channel = _make_divisible(c * width_mult, round_nearest)
@@ -114,12 +118,9 @@ class MobileNetV2(nn.Module):
 
         # building classifier
         self.outputlayer = nn.Sequential(
-            # nn.Dropout(0.2),
-            # nn.Linear(self.last_channel, num_classes),
-           
             nn.Dropout(),
-            # Flatten(),
-            nn.Linear(self.last_channel, 512),
+            Flatten(),
+            nn.Linear(self.last_channel*7*7, 512),
             nn.BatchNorm1d(512)
         )
 
@@ -137,9 +138,10 @@ class MobileNetV2(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, x):
-        x = self.features(x)
-        x = x.mean([2, 3])
-        x = self.outputlayer(x)
+        x = self.features(x)   #n,512,7,7
+        # x = x.mean([2, 3])    # same as average pooling
+        # change mean got precision from 66% to 76%
+        x = self.outputlayer(x) #batch_size, 512
         return x
 
 
