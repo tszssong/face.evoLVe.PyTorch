@@ -78,7 +78,7 @@ if __name__ == '__main__':
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
 
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = BATCH_SIZE, shuffle=True, sampler = sampler, pin_memory = PIN_MEMORY,
+        dataset_train, batch_size = BATCH_SIZE, sampler = sampler, pin_memory = PIN_MEMORY,
         num_workers = NUM_WORKERS, drop_last = DROP_LAST
     )
 
