@@ -147,13 +147,17 @@ if __name__ == '__main__':
     # optionally resume from a checkpoint
     if BACKBONE_RESUME_ROOT and HEAD_RESUME_ROOT:
         print("=" * 60)
-        if os.path.isfile(BACKBONE_RESUME_ROOT) and os.path.isfile(HEAD_RESUME_ROOT):
+        if os.path.isfile(BACKBONE_RESUME_ROOT):
             print("Loading Backbone Checkpoint '{}'".format(BACKBONE_RESUME_ROOT))
             BACKBONE.load_state_dict(torch.load(BACKBONE_RESUME_ROOT))
+        else:
+            print("No Checkpoint Found at '{}'.".format(BACKBONE_RESUME_ROOT))
+        
+        if os.path.isfile(HEAD_RESUME_ROOT):
             print("Loading Head Checkpoint '{}'".format(HEAD_RESUME_ROOT))
             HEAD.load_state_dict(torch.load(HEAD_RESUME_ROOT))
         else:
-            print("No Checkpoint Found at '{}' and '{}'. Please Have a Check or Continue to Train from Scratch".format(BACKBONE_RESUME_ROOT, HEAD_RESUME_ROOT))
+            print("No Checkpoint Found at '{}'. ".format(HEAD_RESUME_ROOT))
         print("=" * 60)
         sys.stdout.flush() 
     if MULTI_GPU:
