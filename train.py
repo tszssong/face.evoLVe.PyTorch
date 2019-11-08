@@ -8,7 +8,7 @@ import torchvision.datasets as datasets
 
 from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
-from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
+from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from backbone.model_resa import RA_92
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax
 from loss.loss import FocalLoss, TripletLoss
@@ -94,6 +94,7 @@ if __name__ == '__main__':
     BACKBONE_DICT = {'ResNet_50': ResNet_50(INPUT_SIZE), 
                      'ResNet_101': ResNet_101(INPUT_SIZE), 
                      'ResNet_152': ResNet_152(INPUT_SIZE),
+                     'IR_18': IR_18(INPUT_SIZE),
                      'IR_50': IR_50(INPUT_SIZE), 
                      'IR_101': IR_101(INPUT_SIZE), 
                      'IR_152': IR_152(INPUT_SIZE),

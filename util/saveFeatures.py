@@ -13,6 +13,7 @@ import torchvision
 from torchvision import transforms
 sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
+from model_m2 import MobileV2
 from model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 
 
