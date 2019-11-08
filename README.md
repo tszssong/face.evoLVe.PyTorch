@@ -13,6 +13,7 @@ lr=0.1 + warmUp最后精度比直接用lr=0.01高
 
 - tri_train.py 用triplet loss训练  
 - tri_hard_train.py 加入难样本  
+  ArcFace训练lr=0.1需要加warmUp,对小模型加WarmUp也难收敛，可先Softmax训几个epoch再fintune  
 
 
 #### 测试  
