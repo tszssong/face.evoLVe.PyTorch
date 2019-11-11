@@ -103,7 +103,7 @@ if __name__ == '__main__':
                      'IR_SE_101': IR_SE_101(INPUT_SIZE), 
                      'IR_SE_152': IR_SE_152(INPUT_SIZE),
                      'RA_92': RA_92(INPUT_SIZE),
-                     'MV2': MobileV2(INPUT_SIZE)}
+                     'MobileV2': MobileV2(INPUT_SIZE)}
 
     BACKBONE = BACKBONE_DICT[BACKBONE_NAME]
     print("=" * 60)
@@ -146,17 +146,21 @@ if __name__ == '__main__':
     print("Optimizer Generated")
     print("=" * 60)
     sys.stdout.flush() 
-
+    # loaded_state = torch.load(model_path+seq_to_seq_test_model_fname
     # optionally resume from a checkpoint
     if BACKBONE_RESUME_ROOT and HEAD_RESUME_ROOT:
         print("=" * 60)
-        if os.path.isfile(BACKBONE_RESUME_ROOT) and os.path.isfile(HEAD_RESUME_ROOT):
+        if os.path.isfile(BACKBONE_RESUME_ROOT):
             print("Loading Backbone Checkpoint '{}'".format(BACKBONE_RESUME_ROOT))
-            BACKBONE.load_state_dict(torch.load(BACKBONE_RESUME_ROOT))
+            BACKBONE.load_state_dict(torch.load(BACKBONE_RESUME_ROOT,map_location='cuda:2'))
+        else:
+            print("No Checkpoint Found at '{}'.".format(BACKBONE_RESUME_ROOT))
+        
+        if os.path.isfile(HEAD_RESUME_ROOT):
             print("Loading Head Checkpoint '{}'".format(HEAD_RESUME_ROOT))
             HEAD.load_state_dict(torch.load(HEAD_RESUME_ROOT))
         else:
-            print("No Checkpoint Found at '{}' and '{}'. Please Have a Check or Continue to Train from Scratch".format(BACKBONE_RESUME_ROOT, HEAD_RESUME_ROOT))
+            print("No Checkpoint Found at '{}'. ".format(HEAD_RESUME_ROOT))
         print("=" * 60)
         sys.stdout.flush() 
     if MULTI_GPU:
@@ -197,7 +201,6 @@ if __name__ == '__main__':
             start = time.time()
             # if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
             #     warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
-            # print(inputs.size(), labels.size(), type(inputs))
             # compute output
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
@@ -248,7 +251,7 @@ if __name__ == '__main__':
         sys.stdout.flush() 
 
         # perform validation & save checkpoints per epoch
-        # validation statistics per epoch (buffer for visualization)
+        # # validation statistics per epoch (buffer for visualization)
         print("=" * 60)
         print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
         accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, EMBEDDING_SIZE, BATCH_SIZE, BACKBONE, lfw, lfw_issame)
