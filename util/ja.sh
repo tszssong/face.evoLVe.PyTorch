@@ -1,9 +1,11 @@
-DATAROOT=/data3/zhengmeisong/TestData/JA-Test/
-for pth in `cat ../../py-model/IR50_v3.lst`
+DATAROOT=/cloud_data01/zhengmeisong/TestData/JA-Test/
+MODELROOT=/cloud_data01/zhengmeisong/wkspace/olx/py-model/
+MODEL=IR_18
+for pth in `cat $MODELROOT/$MODEL.lst`
 do 
     echo $pth
-    Model=$pth
-    python saveFeatures.py --backbone-resume-root $pth --backbone-name IR_50 \
+    Model=$MODELROOT/$pth
+    python saveFeatures.py --backbone-resume-root $Model --backbone-name $MODEL \
         --data-root $DATAROOT --list imgs.lst --gpu-ids 2
     python test_acc_ja.py  --ftname '.ft' \
         --model $Model --imgRoot $DATAROOT \

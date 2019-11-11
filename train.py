@@ -10,6 +10,7 @@ from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from backbone.model_resa import RA_92
+from backbone.model_m2 import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
@@ -101,7 +102,8 @@ if __name__ == '__main__':
                      'IR_SE_50': IR_SE_50(INPUT_SIZE), 
                      'IR_SE_101': IR_SE_101(INPUT_SIZE), 
                      'IR_SE_152': IR_SE_152(INPUT_SIZE),
-                     'RA_92': RA_92(INPUT_SIZE)}
+                     'RA_92': RA_92(INPUT_SIZE),
+                     'MV2': MobileV2(INPUT_SIZE)}
 
     BACKBONE = BACKBONE_DICT[BACKBONE_NAME]
     print("=" * 60)
