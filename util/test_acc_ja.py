@@ -3,6 +3,7 @@ import os, sys, shutil
 import string
 import math
 import time
+from tqdm import tqdm
 import argparse
 
 parser = argparse.ArgumentParser(description='face model evaluate')
@@ -25,28 +26,27 @@ def loadFeatureFromModelDir(idListFile, faceListFile,  ftExt = '.arc'):
     idList = open(idListFile, 'r').readlines()
     idLabel = np.zeros([len(idList)], dtype = np.int32)
     idFeat = np.zeros([len(idList), 512],dtype = np.float32)
-    for idx,line in enumerate(idList):
+#    for idx,line in enumerate(idList):
+    for idx,line in tqdm(enumerate(idList)):
         ftName =line.split(' ')[0][:-4]+ftExt
         if not ftDir==None:
             ftElems = ftName.split('/')
             ftName = ftDir + ftElems[-2]+'/'+ftElems[-1]
-        if idx%1000==0:
-            print('.',end=' ')
-            sys.stdout.flush()
         idFeat[idx,:] = np.loadtxt(ftName)[np.newaxis,:]
         idLabel[idx] = int( line.split(' ')[-1] )
     
     faceList = open(faceListFile, 'r').readlines()
     faceLabel = np.zeros([len(faceList)], dtype = np.int32)
     faceFeat = np.zeros([len(faceList), 512],dtype = np.float32)
-    for idx,line in enumerate(faceList):
+    #for idx,line in enumerate(faceList):
+    for idx,line in tqdm(enumerate(faceList)):
         ftName =line.split(' ')[0][:-4]+ftExt
         if not ftDir==None:
             ftElems = ftName.split('/')
             ftName = ftDir + ftElems[-2]+'/'+ftElems[-1]
-        if idx%1000==0:
-            print('.',end=' ')
-            sys.stdout.flush()
+        #if idx%1000==0:
+        #    print('.',end=' ')
+        #    sys.stdout.flush()
         faceFeat[idx,:] = np.loadtxt(ftName)[np.newaxis,:]
         faceLabel[idx] = int( line.split(' ')[-1] )
 
@@ -61,22 +61,40 @@ def evaluateAllData(idListFile,faceListFile, base_dir='',ftExt='.arc'):
     fScores = np.zeros(idLabel.shape[0]*faceLabel.shape[0], dtype = np.float32)
     fIsSame = np.zeros(idLabel.shape[0]*faceLabel.shape[0], dtype = np.int32)  
     print("calculate:")
-    for idx in range(idLabel.shape[0]):
+    #for idx in range(idLabel.shape[0]):
+    for idx in tqdm(range(idLabel.shape[0])):
         scores = (np.tensordot(idFea[idx], faceFea.transpose(), axes=1) + 1)/2
         isSame = np.zeros( faceLabel.shape[0], dtype = np.int32)
         isSame[np.where(faceLabel==idLabel[idx])] = 1
         fScores[idx*len_face:(idx+1)*len_face] = scores
         fIsSame[idx*len_face:(idx+1)*len_face] = isSame
-        if(idx%1000==0):
-            print(".",end=' ')
+    #    if(idx%1000==0):
+    #        print(".",end=' ')
     minScore = np.min(fScores)
     maxScore = np.max(fScores)
-    print(maxScore, minScore)
+    print("maxScore, minSocre:",maxScore, minScore)
     stepThr = max((maxScore - minScore) / 1000, 0.0001)
     GenuNum = np.where(fIsSame == 1)[0].shape[0]
     ImpoNum = np.where(fIsSame == 0)[0].shape[0]
     return fScores,fIsSame,minScore,maxScore,stepThr,GenuNum,ImpoNum
 
+def Find_Kth_max(array,k):
+    for i in range(1,k):
+        for j in range(i,0,-1):
+            if array[j] > array[j-1]:
+                array[j],array[j-1] = array[j-1],array[j]
+            else:
+                pass
+    for i in range(k,len(array)):
+        if array[i] > array[k-1]:
+            array[k-1] = array[i]
+            for j in range(k-1,0,-1):
+                if array[j] > array[j-1]:
+                    array[j],array[j-1] = array[j-1],array[j]
+                else:
+                    pass
+    return array[k-1]
+            
 def getRocCurveV2(fScores,fLabels,minScore,maxScore,stepThr,GenuNum,ImpoNum):
     ther = minScore
     TPRList = []
@@ -86,8 +104,11 @@ def getRocCurveV2(fScores,fLabels,minScore,maxScore,stepThr,GenuNum,ImpoNum):
     ThrList = []
     
     negLabels = np.where(fLabels==0)[0]
+    print(negLabels.shape)
+    nNegs = negLabels.shape[0]
     nfScores = fScores[negLabels]
     fsort = np.argsort(-nfScores)
+    #fsort = np.sort(-nfScores)
 
     for idx,far in enumerate(FARs):
         negNums = int(round(ImpoNum*far))
