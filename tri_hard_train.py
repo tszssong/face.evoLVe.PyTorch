@@ -8,7 +8,10 @@ import torch.cuda
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-sys.path.append( os.path.join( os.path.dirname(__file__),'/imgdata/') )
+sys.path.append( os.path.join( os.path.dirname(__file__),'/imgdata/' ) )
+sys.path.append( os.path.join( os.path.dirname(__file__),'/lmdbdata/') )
+sys.path.append( os.path.join( os.path.dirname(__file__),'/lmdbdata/proto/') )
+sys.path.append('/home/ubuntu/zms/wkspace/FR/py-tri/lmdbdata/proto/tensor_pb2.py')
 from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
@@ -18,6 +21,8 @@ from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_p
 
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
+from imgdata.folder2lmdb import ImageFolderLMDB
+from imgdata.list2lmdb import ImageListLMDB
 from imgdata.show_img import showBatch, saveBatch
 from imgdata.select_triplets import select_triplets
 hostname = socket.gethostname()
@@ -25,15 +30,15 @@ torch.manual_seed(1337)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img')
+    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore100/')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--log-root', type=str, default='../py-log')
-    parser.add_argument('--backbone-resume-root', type=str, default='../home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--backbone-resume-root', type=str, default='/home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--backbone-name', type=str, default='ResNet_50') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--loss-name', type=str, default='TripletLoss')  # support: ['FocalLoss', 'Softmax', 'TripletLoss']
     parser.add_argument('--embedding-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=120)
+    parser.add_argument('--batch-size', type=int, default=30)
     parser.add_argument('--bag-size', type=int, default=600)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
@@ -101,21 +106,26 @@ if __name__ == '__main__':
                                            transforms.RandomHorizontalFlip(),
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
-   
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'part_imgs.lst'), \
+    # dataset_train = ImageListLMDB(args.data_root + '/train.lmdb', transform=train_transform)
+    # dataset_train = ImageFolderLMDB(args.data_root + '/train.lmdb', transform=train_transform)
+    # train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
+    #              shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
+
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
-    print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
+    # print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
     sys.stdout.flush()  
     
     print(bagSize, batchSize)
     batch = 0   # batch index
     bagIdx = 0
+    bagCount = 0
 
     for epoch in range(args.num_epoch): # start training process
-        if epoch > 0:
-            dataset_train.reset()
+        # if epoch > 0:
+        dataset_train.reset()
         for inputs, labels in iter(train_loader):  #bag_data
             bagIdx += 1
             for l_idx in range(len(lrStages)):
@@ -134,7 +144,20 @@ if __name__ == '__main__':
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
             bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 40) # torch tensor
-                            
+           
+            if(nCount < 20000):
+                bagCount += 1
+            elif(nCount > 200000 and bagIdx > 100):
+                bagCount -= 1   
+            else:
+                bagCount = 0
+            if(bagCount>3):
+                bagSize += batchSize * 100
+                bagCount = 0
+            # if(bagCount<-3 and bagSize>batchSize*100 ):
+            #     bagSize -= batchSize * 100
+                
+            print("bag:",bagSize , len(bagList), nCount, bagCount) 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc    = AverageMeter()
@@ -146,7 +169,7 @@ if __name__ == '__main__':
                 bLabel = labels[batch_idx].to(DEVICE)
                
                 outputs = BACKBONE(bIn)
-                if batch % 1000 == 0:
+                if batch % 100 == 0:
                     bFeature = F.normalize(outputs).detach()
                     saveBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
                         bFeature.cpu().numpy(), show_x=10, batchIdx=batch)
