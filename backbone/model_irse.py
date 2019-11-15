@@ -5,6 +5,7 @@ from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, PReLU, ReLU, Sigm
 from collections import namedtuple
 
 
+from torchstat import stat
 # Support: ['IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
 
 
@@ -252,3 +253,6 @@ def IR_SE_152(input_size):
     model = Backbone(input_size, 152, 'ir_se')
 
     return model
+if __name__ == '__main__':
+    model=IR_18(input_size=[112,112])
+    stat(model, (3,112,112))
