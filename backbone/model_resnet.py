@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, ReLU, Dropout, MaxPool2d, Sequential, Module
 
-
+from torchstat import stat
 # Support: ['ResNet_50', 'ResNet_101', 'ResNet_152']
 
 
@@ -186,3 +186,7 @@ def ResNet_152(input_size, **kwargs):
     model = ResNet(input_size, Bottleneck, [3, 8, 36, 3], **kwargs)
 
     return model
+
+if __name__ == '__main__':
+    model=ResNet_50(input_size=[112,112])
+    stat(model, (3,112,112))

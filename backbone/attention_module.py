@@ -5,7 +5,7 @@ import functools
 from torch.autograd import Variable
 import numpy as np
 
-from .basic_layers import ResidualBlock
+from basic_layers import ResidualBlock
 
 
 class AttentionModule_pre(nn.Module):
@@ -38,15 +38,18 @@ class AttentionModule_pre(nn.Module):
             ResidualBlock(in_channels, out_channels)
         )
 
-        self.interpolation3 = nn.UpsamplingBilinear2d(size=size3)
+        # self.interpolation3 = nn.UpsamplingBilinear2d(size=size3)
+        self.interpolation3 = nn.Upsample(scale_factor=size3, mode='bilinear') 
 
         self.softmax4_blocks = ResidualBlock(in_channels, out_channels)
 
-        self.interpolation2 = nn.UpsamplingBilinear2d(size=size2)
+        # self.interpolation2 = nn.UpsamplingBilinear2d(size=size2)
+        self.interpolation2 = nn.Upsample(scale_factor=size2, mode='bilinear') 
 
         self.softmax5_blocks = ResidualBlock(in_channels, out_channels)
 
-        self.interpolation1 = nn.UpsamplingBilinear2d(size=size1)
+        # self.interpolation1 = nn.UpsamplingBilinear2d(size=size1)
+        self.interpolation1 = nn.Upsample(scale_factor=size1, mode='bilinear') 
 
         self.softmax6_blocks = nn.Sequential(
             nn.BatchNorm2d(out_channels),
@@ -210,21 +213,24 @@ class AttentionModule_stage1(nn.Module):
         )
 
         self.interpolation3 = nn.UpsamplingBilinear2d(size=size3)
+        # self.interpolation3 = nn.Upsample(scale_factor=size3, mode='bilinear') 
 
         self.softmax4_blocks = ResidualBlock(in_channels, out_channels)
 
         self.interpolation2 = nn.UpsamplingBilinear2d(size=size2)
+        # self.interpolation2 = nn.Upsample(scale_factor=size2, mode='bilinear') 
 
         self.softmax5_blocks = ResidualBlock(in_channels, out_channels)
 
         self.interpolation1 = nn.UpsamplingBilinear2d(size=size1)
+        # self.interpolation1 = nn.Upsample(scale_factor=size1, mode='bilinear') 
 
         self.softmax6_blocks = nn.Sequential(
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(),
             nn.Conv2d(out_channels, out_channels , kernel_size = 1, stride = 1, bias = False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(),
             nn.Conv2d(out_channels, out_channels , kernel_size = 1, stride = 1, bias = False),
             nn.Sigmoid()
         )
@@ -284,17 +290,18 @@ class AttentionModule_stage2(nn.Module):
         )
 
         self.interpolation2 = nn.UpsamplingBilinear2d(size=size2)
-
+        # self.interpolation2 = nn.Upsample(scale_factor=size2, mode='bilinear') 
         self.softmax3_blocks = ResidualBlock(in_channels, out_channels)
 
         self.interpolation1 = nn.UpsamplingBilinear2d(size=size1)
+        # self.interpolation1 = nn.Upsample(scale_factor=size1, mode='bilinear') 
 
         self.softmax4_blocks = nn.Sequential(
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(),
             nn.Conv2d(out_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(),
             nn.Conv2d(out_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.Sigmoid()
         )
@@ -341,13 +348,14 @@ class AttentionModule_stage3(nn.Module):
         )
 
         self.interpolation1 = nn.UpsamplingBilinear2d(size=size1)
+        # self.interpolation1 = nn.Upsample(scale_factor=size1, mode='bilinear') 
 
         self.softmax2_blocks = nn.Sequential(
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(out_channels),
             nn.Conv2d(out_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.PReLU(out_channels),
             nn.Conv2d(out_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.Sigmoid()
         )
