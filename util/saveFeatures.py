@@ -3,7 +3,7 @@ import numpy as np
 import bisect
 import PIL
 from PIL import Image 
-
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -58,7 +58,8 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
     done_count=0
     with open(img_list, 'r') as fr:
         lines = fr.readlines()
-        for line in lines:
+        #for line in lines:
+        for line in tqdm(lines):
             path = line.strip().split(' ')[0]
             img_name  = path.split('/')[-1]
             sub_dir   = path.split('/')[-2]
@@ -82,9 +83,6 @@ def alignedImg2feature_vlist(img_list, save_root, model, device="cpu", suffix='.
             feature = batchFea[0].cpu().numpy()
             
             np.savetxt(ft_subdir + '/' + ft_name, feature)
-            if(done_count%500==0):
-                print('.',end=" ")
-                # print(done_count,"ft extracted")
             done_count += 1
     return done_count
 # extra features, to be compatible with mxnet
