@@ -107,7 +107,7 @@ if __name__ == "__main__":
     backbone_load_path = args.backbone_resume_root
     if backbone_load_path and os.path.isfile(backbone_load_path):
         print("Loading Backbone Checkpoint '{}'".format(backbone_load_path))
-        BACKBONE.load_state_dict(torch.load(backbone_load_path)) 
+        BACKBONE.load_state_dict(torch.load(backbone_load_path, map_location='cuda:'+args.gpu_ids)) 
     else:
         print("No Checkpoint Error!" )
     test_transform = transforms.Compose([ transforms.ToTensor(), 
