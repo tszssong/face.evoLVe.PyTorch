@@ -18,6 +18,20 @@ class FocalLoss(nn.Module):
         loss = (1 - p) ** self.gamma * logp
         return loss.mean()
 
+class KDLoss(nn.Module):
+    def __init__(self, alpha = 7):
+        super(KDLoss, self).__init__()
+        self.l2 = nn.MSELoss()
+        self.ce = nn.CrossEntropyLoss()
+        self.alpha = alpha
+
+    def forward(self, input, target, sFeats, tFeats):
+        logp = self.ce(input, target)
+        l2   = self.l2(sFeats, tFeats)
+        print("ce:",logp.cpu().detach().numpy(), 
+              "l2:",l2.cpu().detach().numpy())
+        return logp + l2*self.alpha
+
 class TripletLoss(nn.Module):
     def __init__(self, margin=0.2):
         super(TripletLoss, self).__init__()
