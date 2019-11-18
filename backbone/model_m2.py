@@ -1,4 +1,5 @@
 from torch import nn
+from torchstat import stat 
 
 
 __all__ = ['MobileNetV2', 'mobilenet_v2']
@@ -158,3 +159,6 @@ def MobileV2(input_size, progress=True, **kwargs):
    
     return model
 
+if __name__ == '__main__':
+    model = MobileNetV2()
+    stat(model, (3,112,112))
