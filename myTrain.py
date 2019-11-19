@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1337)
-    parser.add_argument('--data-root', type=str, default='/cloud_data01/zhengmeisong/data/ms1m_emore_imgs/')
+    parser.add_argument('--data-root', type=str, default='/cloud_data01/zhengmeisong/data/gl2ms1m_img/')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--backbone-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--backbone-name', type=str, default='MobileV2') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
@@ -84,9 +84,9 @@ if __name__ == '__main__':
     sys.stdout.flush()  
 
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
-    lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
-    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
+    # lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
+    # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    # agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
    
     BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
@@ -164,6 +164,7 @@ if __name__ == '__main__':
             else:
                 outputs = HEAD(features, labels)
             loss = LOSS(outputs, labels)
+            print('loss:',loss.cpu().detach().numpy())
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
