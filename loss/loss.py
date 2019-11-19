@@ -28,9 +28,12 @@ class KDLoss(nn.Module):
     def forward(self, input, target, sFeats, tFeats):
         logp = self.ce(input, target)
         l2   = self.l2(sFeats, tFeats)
+        # l2 = self.l2(F.normalize(sFeats),F.normalize(tFeats))
         print("ce:",logp.cpu().detach().numpy(), 
               "l2:",l2.cpu().detach().numpy())
+        # return (1-self.alpha)*logp + l2*self.alpha
         return logp + l2*self.alpha
+        # return l2*self.alpha
 
 class TripletLoss(nn.Module):
     def __init__(self, margin=0.2):
