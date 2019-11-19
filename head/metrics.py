@@ -30,7 +30,7 @@ class Softmax(nn.Module):
         # self._initialize_weights()
         nn.init.zeros_(self.bias)
 
-    def forward(self, x):
+    def forward(self, x, label=None):
         if self.device_id == None:
             out = F.linear(x, self.weight, self.bias)
         else:
@@ -46,6 +46,57 @@ class Softmax(nn.Module):
                 bias = sub_biases[i].cuda(self.device_id[i])
                 out = torch.cat((out, F.linear(temp_x, weight, bias).cuda(self.device_id[0])), dim=1)
         return out
+
+class Combine(nn.Module):
+   
+    def __init__(self, in_features, out_features, device_id, s = 64.0, m2 = 0.30, m3 = 0.20, m1 = 1.0):
+        super(Combine, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.device_id = device_id
+
+        self.s = s
+        self.m1 = m1
+        self.m2 = m2
+        self.m3 = m3
+        print('combin:%d, %f, %f, %f'%(s, m1,m2,m3))
+        self.weight = Parameter(torch.FloatTensor(out_features, in_features))
+        nn.init.xavier_uniform_(self.weight)
+      
+    def forward(self, input, label):
+        # --------------------------- cos(theta) & phi(theta) ---------------------------
+        assert self.m3 > 0.0
+        if self.device_id == None:
+            cosine = F.linear(F.normalize(input), F.normalize(self.weight))
+        else:
+            x = input
+            sub_weights = torch.chunk(self.weight, len(self.device_id), dim=0)
+            temp_x = x.cuda(self.device_id[0])
+            weight = sub_weights[0].cuda(self.device_id[0])
+            cosine = F.linear(F.normalize(temp_x), F.normalize(weight))
+            for i in range(1, len(self.device_id)):
+                temp_x = x.cuda(self.device_id[i])
+                weight = sub_weights[i].cuda(self.device_id[i])
+                cosine = torch.cat((cosine, F.linear(F.normalize(temp_x), F.normalize(weight)).cuda(self.device_id[0])), dim=1) 
+        t = torch.acos(cosine)
+        if self.m1 != 0:
+            t = t*self.m1
+        if self.m2 > 0.0:
+            t = t + self.m2
+        body = torch.cos(t)
+        if self.m3 > 0.0:
+            body = body - self.m3
+        
+        # --------------------------- convert label to one-hot ---------------------------
+        one_hot = torch.zeros(cosine.size())
+        if self.device_id != None:
+            one_hot = one_hot.cuda(self.device_id[0])
+        one_hot.scatter_(1, label.view(-1, 1).long(), 1)
+        # -------------torch.where(out_i = {x_i if condition_i else y_i) -------------
+        output = (one_hot * body) + ((1.0 - one_hot) * cosine)  # you can use torch.where if your torch.__version__ is 0.4
+        output *= self.s
+
+        return output
 
 class ArcFace(nn.Module):
     r"""Implement of ArcFace (https://arxiv.org/pdf/1801.07698v1.pdf):
@@ -73,8 +124,8 @@ class ArcFace(nn.Module):
         self.easy_margin = easy_margin
         self.cos_m = math.cos(m)
         self.sin_m = math.sin(m)
-        self.th = math.cos(math.pi - m)
-        self.mm = math.sin(math.pi - m) * m
+        self.th = math.cos(math.pi - m)           #-0.8775
+        self.mm = math.sin(math.pi - m) * m       # 0.2397
 
     def forward(self, input, label):
         # --------------------------- cos(theta) & phi(theta) ---------------------------
@@ -106,7 +157,6 @@ class ArcFace(nn.Module):
         output *= self.s
 
         return output
-
 
 class CosFace(nn.Module):
     r"""Implement of CosFace (https://arxiv.org/pdf/1801.09414.pdf):

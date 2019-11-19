@@ -11,7 +11,7 @@ from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 # from backbone.model_resa import RA_92
 from backbone.model_m2 import MobileV2
-from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax
+from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
@@ -21,24 +21,24 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1337)
-    parser.add_argument('--data-root', type=str, default='/cloud_data01/zhengmeisong/data/ms1m_emore_imgs/')
+    parser.add_argument('--data-root', type=str, default='/data02/zhengmeisong/data/gl2ms1m_img/')
     parser.add_argument('--model-root', type=str, default='../py-model')
     parser.add_argument('--backbone-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--backbone-name', type=str, default='MobileV2') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--head-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--head-name', type=str, default='ArcFace') # support: ['Softmax', 'ArcFace', 'CosFace']
+    parser.add_argument('--head-name', type=str, default='Combine') # support: ['Combin', 'Softmax', 'ArcFace', 'CosFace']
     parser.add_argument('--input-size', type=str, default="112, 112")
-    parser.add_argument('--loss-name', type=str, default='Softmax')  # support: ['FocalLoss', 'Softmax']
+    parser.add_argument('--loss-name', type=str, default='Focal')  # support: ['FocalLoss', 'Softmax']
     parser.add_argument('--emb-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--lr-stages', type=str, default="9,12")
+    parser.add_argument('--lr-stages', type=str, default="9,15,20")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--num-epoch', type=int, default=15)
-    parser.add_argument('--num-workers', type=int, default=6)
-    parser.add_argument('--gpu-ids', type=str, default='0,1')
+    parser.add_argument('--num-epoch', type=int, default=25)
+    parser.add_argument('--num-workers', type=int, default=0)
+    parser.add_argument('--gpu-ids', type=str, default='3')
     parser.add_argument('--save-freq', type=int, default=20)
     parser.add_argument('--test-freq', type=int, default=400)
     args = parser.parse_args()
@@ -158,12 +158,9 @@ if __name__ == '__main__':
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
             features = BACKBONE(inputs)
-            # outputs = HEAD(features, labels)
-            if args.head_name == 'Softmax':
-                outputs = HEAD(features)
-            else:
-                outputs = HEAD(features, labels)
+            outputs = HEAD(features, labels)
             loss = LOSS(outputs, labels)
+            print("loss:",loss.cpu().detach().numpy())
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
