@@ -9,7 +9,7 @@ import torchvision.datasets as datasets
 from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
-# from backbone.model_resa import RA_92
+from backbone.model_resa import RA_92
 from backbone.model_m2 import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
@@ -70,12 +70,12 @@ if __name__ == '__main__':
     dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
-    weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
-    weights = torch.DoubleTensor(weights)
-    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
+    # weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
+    # weights = torch.DoubleTensor(weights)
+    # sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
 
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = args.batch_size, sampler = sampler, 
+        dataset_train, batch_size = args.batch_size, shuffle=True,  
         pin_memory = True, num_workers = args.num_workers, drop_last = True
     )
 
@@ -152,8 +152,8 @@ if __name__ == '__main__':
         # for inputs, labels in tqdm(iter(train_loader)):
         for inputs, labels in iter(train_loader):
             start = time.time()
-            # if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
-            #     warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
+            if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
+                warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, args.lr, OPTIMIZER)
             # compute output
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
