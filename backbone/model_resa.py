@@ -4,10 +4,10 @@ from torch.nn import init
 import functools
 from torch.autograd import Variable
 import numpy as np
-# from .basic_layers import ResidualBlock
-from attention_module import AttentionModule_stage1, AttentionModule_stage2, AttentionModule_stage3, AttentionModule_stage0
+from .basic_layers import ResidualBlock
+from .attention_module import AttentionModule_stage1, AttentionModule_stage2, AttentionModule_stage3, AttentionModule_stage0
 from torchstat import stat
-from basic_layers import ResidualBlock
+# from basic_layers import ResidualBlock
 from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, ReLU, Dropout, MaxPool2d
 from torch.nn import AdaptiveAvgPool2d, Sequential, Module, PReLU, Sigmoid
 class SEModule(Module):

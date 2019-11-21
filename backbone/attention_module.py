@@ -5,7 +5,7 @@ import functools
 from torch.autograd import Variable
 import numpy as np
 
-from basic_layers import ResidualBlock
+from .basic_layers import ResidualBlock
 
 
 class AttentionModule_pre(nn.Module):
