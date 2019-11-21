@@ -1,3 +1,4 @@
+export OMP_NUM_THREADS=4  
 DATAROOT=/cloud_data01/StrongRootData/TestData/JA-Test/
 MODELROOT=/cloud_data01/zhengmeisong/wkspace/py-model/ol9/
 MODELROOT=/cloud_data01/zhengmeisong/wkspace/py-model/olx/
