@@ -67,7 +67,7 @@ if __name__ == '__main__':
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
     ])
 
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'data_100'), train_transform)
+    dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
     weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
@@ -84,9 +84,9 @@ if __name__ == '__main__':
     sys.stdout.flush()  
 
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
-    # lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
-    # cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    # agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
+    lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
+    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
    
     BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
@@ -200,15 +200,15 @@ if __name__ == '__main__':
 
         # perform validation & save checkpoints per epoch
         # # validation statistics per epoch (buffer for visualization)
-        # print("=" * 60)
-        # print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
-        # accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
-        # accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
-        # accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-        # print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
-        # print("=" * 60)
-        # sys.stdout.flush() 
+        print("=" * 60)
+        print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
+        accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
+        accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
+        # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
+        accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
+        print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
+        print("=" * 60)
+        sys.stdout.flush() 
 
         # save checkpoints per epoch
         if MULTI_GPU:
