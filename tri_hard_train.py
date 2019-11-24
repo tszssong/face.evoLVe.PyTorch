@@ -9,20 +9,16 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 sys.path.append( os.path.join( os.path.dirname(__file__),'/imgdata/' ) )
-sys.path.append( os.path.join( os.path.dirname(__file__),'/lmdbdata/') )
-sys.path.append( os.path.join( os.path.dirname(__file__),'/lmdbdata/proto/') )
-sys.path.append('/home/ubuntu/zms/wkspace/FR/py-tri/lmdbdata/proto/tensor_pb2.py')
 from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
+from backbone.model_m2 import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 
 from imgdata.tri_img_iter import TripletImgData
 from imgdata.tri_hard_iter import TripletHardImgData
-from imgdata.folder2lmdb import ImageFolderLMDB
-from imgdata.list2lmdb import ImageListLMDB
 from imgdata.show_img import showBatch, saveBatch
 from imgdata.select_triplets import select_triplets
 hostname = socket.gethostname()
@@ -143,7 +139,8 @@ if __name__ == '__main__':
            
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
-            bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 40) # torch tensor
+            print(features.device)
+            bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
            
             if(nCount < 20000):
                 bagCount += 1
