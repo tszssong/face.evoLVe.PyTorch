@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
     #              shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
 
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'imgs.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'jajrcasia_imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
@@ -128,7 +128,7 @@ if __name__ == '__main__':
                 if bagIdx == lrStages[l_idx]:
                     schedule_lr(OPTIMIZER)
             start = time.time()
-            features = torch.empty(bagSize, args.embedding_size)
+            features = torch.empty(bagSize, args.embedding_size).to(DEVICE)
             BACKBONE.eval()  # set to testing mode
 
             for b_idx in range(int(bagSize/batchSize)):
@@ -139,21 +139,8 @@ if __name__ == '__main__':
            
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
-            print(features.device)
             bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
            
-            if(nCount < 20000):
-                bagCount += 1
-            elif(nCount > 200000 and bagIdx > 100):
-                bagCount -= 1   
-            else:
-                bagCount = 0
-            if(bagCount>3):
-                bagSize += batchSize * 100
-                bagCount = 0
-            # if(bagCount<-3 and bagSize>batchSize*100 ):
-            #     bagSize -= batchSize * 100
-                
             print("bag:",bagSize , len(bagList), nCount, bagCount) 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
