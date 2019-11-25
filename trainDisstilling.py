@@ -11,7 +11,7 @@ from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 # from backbone.model_resa import RA_92
 from backbone.model_m2 import MobileV2
-from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
+from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax
 from loss.loss import FocalLoss, KDLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
@@ -77,12 +77,11 @@ if __name__ == '__main__':
     dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'imgs'), train_transform)
 
     # create a weighted random sampler to process imbalanced data
-    weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
-    weights = torch.DoubleTensor(weights)
-    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
-
+#    weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
+#    weights = torch.DoubleTensor(weights)
+#    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
     train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = args.batch_size, sampler = sampler, 
+        dataset_train, batch_size = args.batch_size, shuffle=True, 
         pin_memory = True, num_workers = args.num_workers, drop_last = True
     )
 
@@ -143,7 +142,13 @@ if __name__ == '__main__':
         # single-GPU setting
         BACKBONE = BACKBONE.to(DEVICE)
         TEACHER  = TEACHER.to(DEVICE)
-
+    # for name, parameters in TEACHER.named_parameters():
+    #     # if(name=='module.body.44.res_layer.0.weight'):
+    #     print(name,parameters.size())
+    # for name, parameters in BACKBONE.named_parameters():
+    #     # if(name=='module.body.44.res_layer.0.weight'):
+    #     print(name, parameters.size())
+    
     #======= train & validation & save checkpoint =======#
     DISP_FREQ = 1                      # frequency to display training loss & acc
     NUM_EPOCH_WARM_UP = args.num_epoch // 25  # use the first 1/25 epochs to warm up
@@ -151,6 +156,8 @@ if __name__ == '__main__':
     batch = 0  # batch index
     elasped = 0
     for epoch in range(args.num_epoch): # start training process
+        
+            
         for l_idx in range(len(lrStages)):
                 if epoch == lrStages[l_idx]:
                     schedule_lr(OPTIMIZER)
@@ -168,7 +175,13 @@ if __name__ == '__main__':
             start = time.time()
             # if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
             #     warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
-            # compute output
+         
+            # for name, parameters in TEACHER.named_parameters():
+            #     if(name=='module.body.44.res_layer.0.weight'):
+            #         print(name,parameters)
+            # for name, parameters in BACKBONE.named_parameters():
+            #     if(name=='module.features.9.conv.3.weight'):
+            #         print(name, parameters)
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
             features = BACKBONE(inputs)
