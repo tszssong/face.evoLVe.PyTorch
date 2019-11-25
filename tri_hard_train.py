@@ -117,7 +117,6 @@ if __name__ == '__main__':
     print(bagSize, batchSize)
     batch = 0   # batch index
     bagIdx = 0
-    bagCount = 0
 
     for epoch in range(args.num_epoch): # start training process
         # if epoch > 0:
@@ -140,8 +139,12 @@ if __name__ == '__main__':
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
             bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
+            while(len(bagList)<batchSize*800 and bagIdx>400):
+                iBag, iCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE)
+                bagList += iBag
+                nCount += iCount
            
-            print("bag:",bagSize , len(bagList), nCount, bagCount) 
+            print("bag:",bagSize , len(bagList), nCount) 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
             acc    = AverageMeter()

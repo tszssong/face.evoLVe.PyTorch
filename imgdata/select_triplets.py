@@ -54,37 +54,25 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5
         dist = 2 - 2*aTf
         mmTimes += (time.time()-t_mm)
         t_copy = time.time()
-        #dist = dist.cpu()
-        copyTimes += (time.time() - t_copy)
+        dist = dist.cpu()
+        copyTimes += (time.time() - t_copy) 
          
-        #n_dists = dist.numpy()[0].copy()
-        #n_dists[ np.where(baglabel_1v==a_label)[0] ] = -8192    #np.NaN    #fill same ids with a bigNumber
-#        n_dists = torch.where(baglabel_1v==a_label, torch.tensor(-8192.0), dist)    #np.NaN    #fill same ids with a bigNumber
-        n_dists = torch.where(baglabel_1v.to(device)==torch.tensor(a_label).to(device), torch.tensor(-8192.0).to(device), dist.to(device))    #np.NaN    #fill same ids with a bigNumber
-       
+        n_dists = dist.numpy()[0].copy()
+        n_dists[ np.where(baglabel_1v==a_label)[0] ] = -8192    #np.NaN    #fill same ids with a bigNumber
         # for idx in range(1, num_id-aid_count+1, p_skip):
         for idx in range(1, num_id-aid_count+1):
             tmp = random.randint(1,p_skip)
-            # if(p_skip>1):
-            #     print("%d: %d"%(num_id,tmp),'-',p_skip,'-',aid_count,' '),
-            #     sys.stdout.flush()
             if (tmp > 1):
                 continue 
             p_idx = a_idx + idx
             # if (np.random.randint(1,num_id))
-            #p_dist = dist.numpy()[0][p_idx]
-            p_dist = dist[0][p_idx]
+            p_dist = dist.numpy()[0][p_idx]
             if(p_dist>1.3):
                 continue
             thresh = p_dist + margin
-            thresh = torch.tensor(thresh).to(device)
-            a = n_dists<thresh
-            b = n_dists>p_dist
-            n_candidates = a*b
-            n_candidates = n_candidates.reshape(n_candidates.shape[1])
-            #n_candidates = np.where( np.logical_and( n_dists<thresh, n_dists>p_dist ) )[0]
+            #n_candidates = n_candidates.reshape(n_candidates.shape[1])
+            n_candidates = np.where( np.logical_and( n_dists<thresh, n_dists>p_dist ) )[0]
             
-            n_candidates = n_candidates.cpu()
             if n_candidates.shape[0] < 1:
                 continue
             elif n_candidates.shape[0] > num_rep:
@@ -93,7 +81,6 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5
                 n_idxs = n_candidates
             for n_idx in n_idxs:
                 bagList.append((a_idx,p_idx,n_idx))
-                #bagList.append((a_idx,p_idx,n_idx))
                 nCount += 1
     
     print("select time:%.5f"%(time.time()-t1))
