@@ -121,8 +121,8 @@ class MobileNetV2(nn.Module):
         self.outputlayer = nn.Sequential(
             nn.Dropout(),
             Flatten(),
-            nn.Linear(self.last_channel*7*7, 512),
-            nn.BatchNorm1d(512)
+            nn.Linear(self.last_channel*7*7, num_classes),
+            nn.BatchNorm1d(num_classes)
         )
 
         # weight initialization
@@ -140,13 +140,11 @@ class MobileNetV2(nn.Module):
 
     def forward(self, x):
         x = self.features(x)   #n,512,7,7
-        # x = x.mean([2, 3])    # same as average pooling
-        # change mean got precision from 66% to 76%
         x = self.outputlayer(x) #batch_size, 512
         return x
 
 
-def MobileV2(input_size, progress=True, **kwargs):
+def MobileV2(input_size, emb_size, progress=True, **kwargs):
     """
     Constructs a MobileNetV2 architecture from
     `"MobileNetV2: Inverted Residuals and Linear Bottlenecks" <https://arxiv.org/abs/1801.04381>`_.
@@ -155,7 +153,8 @@ def MobileV2(input_size, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = MobileNetV2(**kwargs)
+    
+    model = MobileNetV2(num_classes=emb_size, **kwargs)
    
     return model
 

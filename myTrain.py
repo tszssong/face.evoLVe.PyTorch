@@ -87,8 +87,7 @@ if __name__ == '__main__':
     lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
     cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
-   
-    BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE)
+    BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE, emb_size = args.emb_size)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
    
     LOSS_DICT = {'Focal': FocalLoss(), 
