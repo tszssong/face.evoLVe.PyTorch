@@ -14,7 +14,6 @@ from backbone.model_m2 import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
-from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -135,7 +134,7 @@ if __name__ == '__main__':
     NUM_EPOCH_WARM_UP = args.num_epoch // 25  # use the first 1/25 epochs to warm up
     NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
     batch = 0  # batch index
-    elasped = 0
+    elasped = 0.0
     for epoch in range(args.num_epoch): # start training process
         for l_idx in range(len(lrStages)):
                 if epoch == lrStages[l_idx]:
@@ -169,9 +168,12 @@ if __name__ == '__main__':
             OPTIMIZER.zero_grad()
             loss.backward()
             OPTIMIZER.step()
+            end = time.time()
+            elasped = elasped + (end - start)
             # dispaly training loss & acc every DISP_FREQ
             if ((batch + 1) % DISP_FREQ == 0) and batch != 0:
-                print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(elasped/DISP_FREQ) )
+                #print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(end-start) )
+                print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "%.3f/batch"%((end-start)) )
                 elasped = 0
                 print('Epoch {}/{} Batch {}/{}\t'
                       'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
@@ -180,10 +182,7 @@ if __name__ == '__main__':
                     epoch + 1, args.num_epoch, batch + 1, len(train_loader) * args.num_epoch, loss = losses, top1 = top1, top5 = top5))
                 print("=" * 60)
                 sys.stdout.flush()
-
             batch += 1 # batch index
-            end = time.time() - start
-            elasped = elasped + end
 
         # training statistics per epoch (buffer for visualization)
         epoch_loss = losses.avg
@@ -203,7 +202,6 @@ if __name__ == '__main__':
         print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
         accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
         accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
         accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
         print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
         print("=" * 60)
