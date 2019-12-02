@@ -203,12 +203,10 @@ if __name__ == '__main__':
         print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
         accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
         accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
         accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
         print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
         print("=" * 60)
         sys.stdout.flush() 
-
         # save checkpoints per epoch
         if MULTI_GPU:
             torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
