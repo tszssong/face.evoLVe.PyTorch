@@ -89,7 +89,7 @@ if __name__ == '__main__':
     cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
    
-    BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE)
+    BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE, emb_size=args.emb_size)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
    
     # LOSS = KDLoss()
@@ -201,7 +201,9 @@ if __name__ == '__main__':
             # loss = LOSS(torch.log(outputs), torch.log(teacher_outputs))
             # loss = LOSS(torch.log(outputs), teacher_outputs)
             # loss = LOSS(outputs, torch.log(teacher_outputs))
-            loss = (0.96*6*6)*LOSS(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6))
+            #loss = (0.96*6*6)*LOSS(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6))
+            loss = (0.95*6*6)*nn.KLDivLoss()(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6)) + \
+                   0.05*nn.MSELoss()(features, tFeats)
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
