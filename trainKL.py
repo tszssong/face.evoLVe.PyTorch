@@ -18,8 +18,29 @@ from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
-if __name__ == '__main__':
+from nvidia.dali.pipeline import Pipeline
+import nvidia.dali.ops as dali_ops
+import nvidia.dali.types as dali_types
+from nvidia.dali.plugin.pytorch import DALIGenericIterator
 
+class reader_pipeline(Pipeline):
+    def __init__(self, image_dir, batch_size, num_threads, device_id):
+        super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
+        self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = True)
+        self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
+        self.cmn_img = dali_ops.CropMirrorNormalize(device = "gpu",
+                                           crop=(112, 112),  crop_pos_x=0, crop_pos_y=0,
+                                           output_dtype = dali_types.FLOAT, image_type=dali_types.RGB,
+                                           mean=[0.5*255, 0.5*255, 0.5*255],
+                                           std=[0.5*255, 0.5*255, 0.5*255]
+                                           )
+    def define_graph(self):
+        jpegs, labels = self.input(name="Reader")
+        images = self.decode(jpegs)
+        imgs = self.cmn_img(images)
+        return (imgs, labels)
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1337)
     parser.add_argument('--data-root', type=str, default='/newdata/zhengmeisong/data/gl2ms1m_img/')
@@ -44,9 +65,10 @@ if __name__ == '__main__':
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--num-epoch', type=int, default=25)
-    parser.add_argument('--num-workers', type=int, default=0)
+    parser.add_argument('--num-workers', type=int, default=1)
     parser.add_argument('--gpu-ids', type=str, default='0,2,3')
     parser.add_argument('--disp-freq', type=int, default=2)
+    parser.add_argument('--num-classes', type=int, default=143474)
     args = parser.parse_args()
 
     #======= hyperparameters & data loaders =======#
@@ -65,25 +87,15 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_transform = transforms.Compose([ 
-        # transforms.Resize([int(128 * INPUT_SIZE[0] / 112), int(128 * INPUT_SIZE[0] / 112)]), # smaller side resized
-        # transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
-    ])
-
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'data_100'), train_transform)
-
-    train_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size = args.batch_size, shuffle=True, 
-        pin_memory = True, num_workers = args.num_workers, drop_last = True
-    )
-
-    NUM_CLASS = len(train_loader.dataset.classes)
-    print("Number of Training Classes: {}".format(NUM_CLASS))
-    sys.stdout.flush()  
-
+    train_dir = os.path.join(args.data_root, 'imgs')
+    train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = 2)
+    train_pipes.build()
+    train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
+                                       train_pipes.epoch_size("Reader"), \
+                                       auto_reset=True)
+    NUM_CLASS = args.num_classes
+    #NUM_CLASS = 100
+    
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
     lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
     cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
@@ -104,9 +116,6 @@ if __name__ == '__main__':
     OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn + head_paras_wo_bn, 
                             'weight_decay': args.weight_decay}, 
                             {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
-    # OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn + head_paras_wo_bn, 
-    #                         'weight_decay': args.weight_decay}, 
-    #                         {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
     # optionally resume from a checkpoint
@@ -145,46 +154,41 @@ if __name__ == '__main__':
         # single-GPU setting
         BACKBONE = BACKBONE.to(DEVICE)
         TEACHER  = TEACHER.to(DEVICE)
-    # for name, parameters in TEACHER.named_parameters():
-    #     # if(name=='module.body.44.res_layer.0.weight'):
-    #     print(name,parameters.size())
-    # for name, parameters in BACKBONE.named_parameters():
-    #     # if(name=='module.body.44.res_layer.0.weight'):
-    #     print(name, parameters.size())
     
     #======= train & validation & save checkpoint =======#
     DISP_FREQ = args.disp_freq                    # frequency to display training loss & acc
     NUM_EPOCH_WARM_UP = args.num_epoch // 25  # use the first 1/25 epochs to warm up
-    NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
+    NUM_BATCH_WARM_UP = 0  # use the first 1/25 epochs to warm up
     batch = 0  # batch index
     elasped = 0
     for epoch in range(args.num_epoch): # start training process
         
             
         for l_idx in range(len(lrStages)):
-                if epoch == lrStages[l_idx]:
-                    schedule_lr(OPTIMIZER)
+            if epoch == lrStages[l_idx]:
+                #for params in OPTIMIZER.param_groups:
+                #    params['lr'] *= 10.
+                #    print(OPTIMIZER)
+                schedule_lr(OPTIMIZER)
 
         BACKBONE.train()  # set to training mode
-        HEAD.train()
+       # HEAD.train()
+        HEAD.eval()
         TEACHER.eval()
+        HEAD_TEACHER.eval()
 
         losses = AverageMeter()
         top1   = AverageMeter()
         top5   = AverageMeter()
 
         # for inputs, labels in tqdm(iter(train_loader)):
-        for inputs, labels in iter(train_loader):
+    #    for inputs, labels in iter(train_loader):
+        for i, datas  in enumerate(train_loader):
+            inputs = datas[0]['imgs']
+            labels = datas[0]['labels']
+            labels = labels.view(args.batch_size)
             start = time.time()
-            # if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
-            #     warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, LR, OPTIMIZER)
-         
-            # for name, parameters in TEACHER.named_parameters():
-            #     if(name=='module.body.44.res_layer.0.weight'):
-            #         print(name,parameters)
-            # for name, parameters in BACKBONE.named_parameters():
-            #     if(name=='module.features.9.conv.3.weight'):
-            #         print(name, parameters)
+
             inputs = inputs.to(DEVICE)
             labels = labels.to(DEVICE).long()
             features = BACKBONE(inputs)
@@ -196,14 +200,11 @@ if __name__ == '__main__':
             else:
                 outputs = HEAD(features, labels)
                 teacher_outputs = HEAD_TEACHER(tFeats, labels)
-            # loss = LOSS(outputs, labels, features, tFeats)
-            # loss = LOSS(features, tFeats)
-            # loss = LOSS(torch.log(outputs), torch.log(teacher_outputs))
-            # loss = LOSS(torch.log(outputs), teacher_outputs)
-            # loss = LOSS(outputs, torch.log(teacher_outputs))
             #loss = (0.96*6*6)*LOSS(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6))
+            #loss = (0.95*6*6)*nn.KLDivLoss()(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6)) + \
+             #      0.05*nn.MSELoss()(features, tFeats)
             loss = (0.95*6*6)*nn.KLDivLoss()(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6)) + \
-                   0.05*nn.MSELoss()(features, tFeats)
+                   0.05*nn.MSELoss()(features, tFeats) + nn.CrossEntropyLoss()(outputs, labels)
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
@@ -215,12 +216,14 @@ if __name__ == '__main__':
             OPTIMIZER.step()
             # dispaly training loss & acc every DISP_FREQ
             if ((batch + 1) % DISP_FREQ == 0) and batch != 0:
+                print("ce:%.5f, l2:%.5f, kl:%.5f"%(nn.CrossEntropyLoss()(outputs, labels), nn.MSELoss()(features, tFeats), \
+                                      nn.KLDivLoss()(F.log_softmax(outputs/6), F.softmax(teacher_outputs/6)) ) )
                 print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(elasped/DISP_FREQ) )
                 elasped = 0
-                print('E {}/{} B {}/{} Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                print('E {}/{} B {} Loss {loss.val:.4f} ({loss.avg:.4f}) '
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f}) '
                       'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                    epoch + 1, args.num_epoch, batch + 1, len(train_loader) * args.num_epoch, 
+                    epoch + 1, args.num_epoch, batch + 1,  
                     loss = losses, top1 = top1, top5 = top5))
                 sys.stdout.flush()
 
@@ -241,16 +244,14 @@ if __name__ == '__main__':
         sys.stdout.flush() 
 
         # perform validation & save checkpoints per epoch
-        # # validation statistics per epoch (buffer for visualization)
-        # print("=" * 60)
-        # print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
-        # accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
-        # accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
-        # accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-        # print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
-        # print("=" * 60)
-        # sys.stdout.flush() 
+        print("=" * 60)
+        print("Perform Evaluation on LFW, CFP_FP, AgeDB, and Save Checkpoints...")
+        accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
+        accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
+        accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
+        print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
+        print("=" * 60)
+        sys.stdout.flush() 
 
         # save checkpoints per epoch
         if MULTI_GPU:
