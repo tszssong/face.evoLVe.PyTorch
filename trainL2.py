@@ -9,9 +9,9 @@ import torchvision.datasets as datasets
 from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
-# from backbone.model_resa import RA_92
+from backbone.model_resa import RA_92
 from backbone.model_m2 import MobileV2
-from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax
+from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, KDLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tensorboardX import SummaryWriter
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--teacher-name', type=str, default='IR_SE_152') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--teacher-head-resume-root', type=str, 
                         default='../py-preTrain/ArcFace_IR_SE_152_Epoch_16.pth')
-    parser.add_argument('--teahcer-head-name', type=str, default='ArcFace')
+    parser.add_argument('--teacher-head-name', type=str, default='ArcFace')
     parser.add_argument('--teacher-ids', type=str, default='2')
 
     parser.add_argument('--backbone-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
@@ -38,7 +38,6 @@ if __name__ == '__main__':
     parser.add_argument('--loss-name', type=str, default='KDLoss')  # support: ['FocalLoss', 'Softmax', 'KDLoss']
     parser.add_argument('--emb-size', type=int, default=512)
     parser.add_argument('--batch-size', type=int, default=150)
-    parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="12,18,22")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
@@ -46,8 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-epoch', type=int, default=25)
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--gpu-ids', type=str, default='0,2,3')
-    parser.add_argument('--save-freq', type=int, default=20)
-    parser.add_argument('--test-freq', type=int, default=400)
+    parser.add_argument('--disp-freq', type=int, default=2)
     args = parser.parse_args()
 
     #======= hyperparameters & data loaders =======#
@@ -74,12 +72,8 @@ if __name__ == '__main__':
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
     ])
 
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'imgs'), train_transform)
+    dataset_train = datasets.ImageFolder(os.path.join(args.data_root, 'data_100'), train_transform)
 
-    # create a weighted random sampler to process imbalanced data
-#    weights = make_weights_for_balanced_classes(dataset_train.imgs, len(dataset_train.classes))
-#    weights = torch.DoubleTensor(weights)
-#    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
     train_loader = torch.utils.data.DataLoader(
         dataset_train, batch_size = args.batch_size, shuffle=True, 
         pin_memory = True, num_workers = args.num_workers, drop_last = True
@@ -97,8 +91,8 @@ if __name__ == '__main__':
     BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
    
-    LOSS = KDLoss()
-    
+    # LOSS = KDLoss()
+    LOSS = nn.MSELoss()
     if args.backbone_name.find("IR") >= 0:
         backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
         _, head_paras_wo_bn = separate_irse_bn_paras(HEAD)
@@ -108,6 +102,9 @@ if __name__ == '__main__':
     OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn + head_paras_wo_bn, 
                             'weight_decay': args.weight_decay}, 
                             {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
+    # OPTIMIZER = optim.Adam([{'params': backbone_paras_wo_bn + head_paras_wo_bn, 
+    #                         'weight_decay': args.weight_decay}, 
+    #                         {'params': backbone_paras_only_bn}], lr = args.lr, momentum = args.momentum)
     print(LOSS,"\n",OPTIMIZER,"\n","="*60, "\n") 
     sys.stdout.flush() 
     # optionally resume from a checkpoint
@@ -131,6 +128,10 @@ if __name__ == '__main__':
     assert os.path.isfile(args.teacher_resume_root)
     print("Loading teacher Checkpoint '{}'".format(args.teacher_resume_root))
     TEACHER.load_state_dict(torch.load(args.teacher_resume_root,map_location=DEVICE))
+    # HEAD_TEACHER = eval(args.teacher_head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
+    # assert os.path.isfile(args.teacher_head_resume_root)
+    # print("Loading teacher Checkpoint '{}'".format(args.teacher_head_resume_root))
+    # HEAD_TEACHER.load_state_dict(torch.load(args.teacher_head_resume_root,map_location=DEVICE))
     
     if MULTI_GPU:
         # multi-GPU setting
@@ -150,7 +151,7 @@ if __name__ == '__main__':
     #     print(name, parameters.size())
     
     #======= train & validation & save checkpoint =======#
-    DISP_FREQ = 1                      # frequency to display training loss & acc
+    DISP_FREQ = args.disp_freq                    # frequency to display training loss & acc
     NUM_EPOCH_WARM_UP = args.num_epoch // 25  # use the first 1/25 epochs to warm up
     NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
     batch = 0  # batch index
@@ -191,7 +192,8 @@ if __name__ == '__main__':
                 outputs = HEAD(features)
             else:
                 outputs = HEAD(features, labels)
-            loss = LOSS(outputs, labels, features, tFeats)
+            # loss = LOSS(outputs, labels, features, tFeats)
+            loss = LOSS(features, tFeats)
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
@@ -231,15 +233,15 @@ if __name__ == '__main__':
 
         # perform validation & save checkpoints per epoch
         # # validation statistics per epoch (buffer for visualization)
-        print("=" * 60)
-        print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
-        accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
-        accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
-        accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-        print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
-        print("=" * 60)
-        sys.stdout.flush() 
+        # print("=" * 60)
+        # print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
+        # accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
+        # accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
+        # # buffer_val(writer, "CFP_FP", accuracy_cfp_fp, best_threshold_cfp_fp, roc_curve_cfp_fp, epoch + 1)
+        # accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
+        # print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
+        # print("=" * 60)
+        # sys.stdout.flush() 
 
         # save checkpoints per epoch
         if MULTI_GPU:
