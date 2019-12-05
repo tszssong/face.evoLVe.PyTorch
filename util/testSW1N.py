@@ -121,7 +121,9 @@ def evaluateAllData(idListFile,faceListFile, base_dir='',ftExt='.arc'):
     fScores = np.zeros(idLabel.shape[0]*faceLabel.shape[0], dtype = np.float32)
     fIsSame = np.zeros(idLabel.shape[0]*faceLabel.shape[0], dtype = np.int32)  
     print("calculate:")
-    
+    txtname = args.model.split('.')[0]+ '_sw.txt'
+    with open(txtname, 'w') as fw:
+        fw.write(args.model+'\n')
     for t in range(72,79,1):
         th = t/100.0
         acceptedFalse = 0
@@ -144,10 +146,8 @@ def evaluateAllData(idListFile,faceListFile, base_dir='',ftExt='.arc'):
                 if args.saveFP:
                     saveFN(idListFile, faceListFile, ididx=idx, faceidx = top1idx, score = scores[top1idx], th=th)
                 
-                
         print("truelytop1:%3d,acceptedFalse:%3d - tpr:%.2f%%,far:%.2f%% @TH=%.2f"% \
             (selsecedTrue, acceptedFalse, selsecedTrue/5.0, acceptedFalse/5.0, th) )
-        txtname = args.model.split('.')[0]+ '_sw.txt'
         with open(txtname, 'a') as fw:
             fw.write("truelytop1:%3d,acceptedFalse:%3d - tpr:%.2f%%,far:%.2f%% @TH=%.2f \n"% \
                      (selsecedTrue, acceptedFalse, selsecedTrue/5.0, acceptedFalse/5.0, th) )
