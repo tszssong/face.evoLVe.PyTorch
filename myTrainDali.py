@@ -79,7 +79,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     train_dir = os.path.join(args.data_root, 'imgs')
-    train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = 2)
+    train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     if args.head_resume_root:   
         if os.path.isfile(args.head_resume_root):
             print("Loading Head Checkpoint '{}'".format(args.head_resume_root))
-            HEAD.load_state_dict(torch.load(args.head_resume_root))
+            HEAD.load_state_dict(torch.load(args.head_resume_root,map_location=DEVICE))
         else:
             print("No Checkpoint Found at '{}'. ".format(args.head_resume_root))
         print("=" * 60)
