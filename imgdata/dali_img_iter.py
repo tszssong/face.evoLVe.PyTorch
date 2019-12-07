@@ -25,11 +25,11 @@ class reader_pipeline(Pipeline):
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
        
-        self.brightness_change = dali_ops.Uniform(range=(0.5,1.5))
+        self.brightness_change = dali_ops.Uniform(range=(0.6,1.4))
         self.rd_bright = dali_ops.Brightness(device="gpu")
-        self.contrast_change = dali_ops.Uniform(range=(0.5,1.5))
+        self.contrast_change = dali_ops.Uniform(range=(0.6,1.4))
         self.rd_contrast = dali_ops.Contrast(device = "gpu")
-        self.saturation_change = dali_ops.Uniform(range=(0.5,1.5))
+        self.saturation_change = dali_ops.Uniform(range=(0.6,1.4))
         self.rd_saturation = dali_ops.Saturation(device = "gpu")
         self.jitter_change = dali_ops.Uniform(range=(1,2))
         self.rd_jitter = dali_ops.Jitter(device = "gpu")
@@ -58,7 +58,7 @@ class reader_pipeline(Pipeline):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img/')
+    parser.add_argument('--data-root', type=str, default='/mnt/sdc/zhengmeisong/data/glintv2_emore_ms1m_img/')
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--num-epoch', type=int, default=25)
@@ -113,8 +113,8 @@ if __name__=='__main__':
                     x = 0
                     if y==show_y:
                         y = 0
-                        cv2.imshow("sample", show_sample_img)
-                        cv2.waitKey(1000)
-                        # cv2.imwrite("./sample%d.jpg"%epoch, show_sample_img)
+                       # cv2.imshow("sample", show_sample_img)
+                        #cv2.waitKey(1000)
+                        cv2.imwrite("./tmp/sample%d.jpg"%i, show_sample_img)
 
     print("10 epoch use time: %.2f s"%(time.time()-start))
