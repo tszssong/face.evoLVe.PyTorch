@@ -17,74 +17,42 @@ class reader_pipeline(Pipeline):
         super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
         self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = False)
         self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
-        self.augmentations = {}
-        self.augmentations["contrast"] = dali_ops.Contrast(device = "gpu", contrast = 1.5)
-        self.augmentations["brightness"] = dali_ops.Brightness(device = "gpu", brightness = 0.5)
-        self.augmentations["saturation"] = dali_ops.Saturation(device = "gpu", saturation = 0.2)
-        self.augmentations["jitter"] = dali_ops.Jitter(device = "gpu")
-        self.augmentations["hue"] = dali_ops.Hue(device = "gpu", hue = 0.)
+       
         self.cmn_img = dali_ops.CropMirrorNormalize(device = "gpu",
                                            crop=(112, 112),  crop_pos_x=0, crop_pos_y=0,
                                            output_dtype = dali_types.FLOAT, image_type=dali_types.RGB,
                                            mean=[0.5*255, 0.5*255, 0.5*255],
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
-        self.brightness_change = dali_ops.Uniform(range=(0.5,1.2))
-        self.rotate = dali_ops.Rotate(device = "gpu")
-        self.rng = dali_ops.Uniform(range = (-50.0,40.0))
+       
+        self.brightness_change = dali_ops.Uniform(range=(0.5,1.5))
         self.rd_bright = dali_ops.Brightness(device="gpu")
-
-        # self.disturb = dali_ops.CoinFlip(probability=0.5)
-        self.disturb = random.randint(0,1)
-    # def transform(self, inputs):
-    #     if 
-
+        self.contrast_change = dali_ops.Uniform(range=(0.5,1.5))
+        self.rd_contrast = dali_ops.Contrast(device = "gpu")
+        self.saturation_change = dali_ops.Uniform(range=(0.5,1.5))
+        self.rd_saturation = dali_ops.Saturation(device = "gpu")
+        self.jitter_change = dali_ops.Uniform(range=(1,2))
+        self.rd_jitter = dali_ops.Jitter(device = "gpu")
+        self.disturb = dali_ops.CoinFlip(probability=0.3)
+        self.hue_change = dali_ops.Uniform(range = (-30,30))
+        self.hue = dali_ops.Hue(device = "gpu")
+       
+ 
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
         images = self.decode(jpegs)
-        # bright = self.brightness_change()
-        # images = self.rd_bright(images, brightness=bright)
-        angle = self.rng()
-        # images = self.rotate(images, angle = angle)
-        _disturb = random.randint(0,1)
-        print(type(_disturb))
-        print(_disturb)
-        if _disturb:
-            images = self.rotate(images, angle=angle)
-        # images = self.augmentations["brightness"](images, brightness=bright)
-        # images = dali_ops.Brightness(device = "gpu", brightness=self.brightness_change())(images)
-        # _rd = random.randint(0,1)
-        # if _rd == 1:
-        #     _cbs = random.randint(0,6)
-        #     if _cbs == 0:
-        #         images = self.augmentations["contrast"](images) 
-        #     elif _cbs == 1:
-        #         images = self.augmentations["brightness"](images)
-        #     elif _cbs == 2:
-        #         images = self.augmentations["saturation"](images)
-        #     elif _cbs == 3:
-        #         images = self.augmentations["contrast"](images) 
-        #         images = self.augmentations["brightness"](images)
-        #     elif _cbs ==4:
-        #         images = self.augmentations["brightness"](images)
-        #         images = self.augmentations["saturation"](images)
-        #     elif _cbs == 5:
-        #         images = self.augmentations["contrast"](images) 
-        #         images = self.augmentations["saturation"](images)
-        #     elif _cbs == 6:
-        #         images = self.augmentations["contrast"](images)
-        #         images = self.augmentations["brightness"](images) 
-        #         images = self.augmentations["saturation"](images)
-        # _rd = random.randint(0,2)
-        # if _rd == 1:
-        #     images = self.augmentations["jitter"](images)
-        # _rd = random.randint(0,1)
-        # if _rd == 1:
-        # # if np.random.randint(0,2):
-        # # images = self.augmentations["hue"](images)
-        #     hue_param = random.randint(0,100)
-        #     print(_rd, hue_param)
-        #     images = dali_ops.Hue(device = "gpu", hue = 45.)(images)
+        brightness = self.brightness_change()
+        images = self.rd_bright(images, brightness=brightness)
+        contrast = self.contrast_change()
+        images = self.rd_contrast(images, contrast = contrast)
+        saturation = self.saturation_change()
+        images = self.rd_saturation(images, saturation = saturation)
+        jitter = self.jitter_change()
+        disturb = self.disturb()
+        images = self.rd_jitter(images, mask = disturb)
+        hue = self.hue_change()
+        images = self.hue(images, hue = hue)
+       
         imgs = self.cmn_img(images)
         return (imgs, labels)
 
