@@ -63,7 +63,7 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_dir = os.path.join(args.data_root, 'imgs')
+    train_dir = os.path.join(args.data_root, 'data_100')
     train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\

@@ -33,10 +33,11 @@ class reader_pipeline(Pipeline):
         self.rd_saturation = dali_ops.Saturation(device = "gpu")
         self.jitter_change = dali_ops.Uniform(range=(1,2))
         self.rd_jitter = dali_ops.Jitter(device = "gpu")
-        self.disturb = dali_ops.CoinFlip(probability=0.3)
+        self.jitter_mask = dali_ops.CoinFlip(probability = 0.3)
         self.hue_change = dali_ops.Uniform(range = (-30,30))
         self.hue = dali_ops.Hue(device = "gpu")
-       
+        self.p_hflip = dali_ops.CoinFlip(probability = 0.5)
+        self.flip = dali_ops.Flip(device = "gpu")
  
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
@@ -48,11 +49,12 @@ class reader_pipeline(Pipeline):
         saturation = self.saturation_change()
         images = self.rd_saturation(images, saturation = saturation)
         jitter = self.jitter_change()
-        disturb = self.disturb()
-        images = self.rd_jitter(images, mask = disturb)
+        jitter_mask = self.jitter_mask()
+        images = self.rd_jitter(images, mask = jitter_mask)
         hue = self.hue_change()
         images = self.hue(images, hue = hue)
-       
+        p_hflip = self.p_hflip()
+        images = self.flip(images, horizontal = p_hflip)
         imgs = self.cmn_img(images)
         return (imgs, labels)
 
