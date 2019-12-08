@@ -15,16 +15,14 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator
 class reader_pipeline(Pipeline):
     def __init__(self, image_dir, batch_size, num_threads, device_id):
         super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
-        self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = False)
+        self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = True)
         self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
-       
         self.cmn_img = dali_ops.CropMirrorNormalize(device = "gpu",
                                            crop=(112, 112),  crop_pos_x=0, crop_pos_y=0,
                                            output_dtype = dali_types.FLOAT, image_type=dali_types.RGB,
                                            mean=[0.5*255, 0.5*255, 0.5*255],
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
-       
         self.brightness_change = dali_ops.Uniform(range=(0.6,1.4))
         self.rd_bright = dali_ops.Brightness(device="gpu")
         self.contrast_change = dali_ops.Uniform(range=(0.6,1.4))
@@ -38,7 +36,7 @@ class reader_pipeline(Pipeline):
         self.hue = dali_ops.Hue(device = "gpu")
         self.p_hflip = dali_ops.CoinFlip(probability = 0.5)
         self.flip = dali_ops.Flip(device = "gpu")
- 
+
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
         images = self.decode(jpegs)
@@ -57,6 +55,7 @@ class reader_pipeline(Pipeline):
         images = self.flip(images, horizontal = p_hflip)
         imgs = self.cmn_img(images)
         return (imgs, labels)
+
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
