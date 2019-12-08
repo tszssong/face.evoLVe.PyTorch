@@ -13,7 +13,9 @@ from backbone.model_resa import RA_92
 from backbone.model_m2 import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
-from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
+from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, \
+    separate_irse_bn_paras, separate_resnet_bn_paras, \
+    warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
 from tqdm import tqdm
 from imgdata.show_img import showBatch, saveBatch
 import torch.nn.functional as F
@@ -21,24 +23,24 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1337)
-    parser.add_argument('--data-root', type=str, default='/cloud_data01/zhengmeisong/data/gl2ms1m_img/')
+    parser.add_argument('--data-root', type=str, default='/home/ubuntu/zms/data/ms1m_emore_img/')
     parser.add_argument('--model-root', type=str, default='../py-model')
-    parser.add_argument('--backbone-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--backbone-name', type=str, default='MobileV2') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
-    parser.add_argument('--head-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
-    parser.add_argument('--head-name', type=str, default='Combine') # support: ['Combin', 'Softmax', 'ArcFace', 'CosFace']
+    parser.add_argument('--backbone-resume-root', type=str, default='.')
+    parser.add_argument('--backbone-name', type=str, default='MobileV2') # support: ['ResNet_50'
+    parser.add_argument('--head-resume-root', type=str, default='')
+    parser.add_argument('--head-name', type=str, default='Combine')
     parser.add_argument('--input-size', type=str, default="112, 112")
-    parser.add_argument('--loss-name', type=str, default='Focal')  # support: ['FocalLoss', 'Softmax']
+    parser.add_argument('--loss-name', type=str, default='Focal') 
     parser.add_argument('--emb-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=256)
+    parser.add_argument('--batch-size', type=int, default=36)
     parser.add_argument('--margin', type=float, default=0.3)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lr-stages', type=str, default="9,15,20")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--num-epoch', type=int, default=25)
+    parser.add_argument('--num-epoch', type=int, default=24)
     parser.add_argument('--num-workers', type=int, default=0)
-    parser.add_argument('--gpu-ids', type=str, default='3')
+    parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--save-freq', type=int, default=20)
     parser.add_argument('--test-freq', type=int, default=400)
     args = parser.parse_args()
@@ -60,12 +62,13 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     train_transform = transforms.Compose([ 
-        # transforms.Resize([int(128 * INPUT_SIZE[0] / 112), int(128 * INPUT_SIZE[0] / 112)]), # smaller side resized
+        # transforms.Resize([int(128 * INPUT_SIZE[0] / 112), int(128 * INPUT_SIZE[0] / 112)]), 
         # transforms.RandomCrop([INPUT_SIZE[0], INPUT_SIZE[1]]),
-        transforms.ColorJitter(brightness=1),
-        # transforms.ColorJitter(contrast=1),
-        # transforms.ColorJitter(saturation=0.5),
-        # transforms.ColorJitter(hue=0.5),
+        transforms.ColorJitter(brightness=0.4),
+        transforms.ColorJitter(contrast=0.4),
+        transforms.ColorJitter(saturation=0.4),
+        transforms.ColorJitter(hue=0.3),
+        transforms.RandomGrayscale(p = 0.1),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]),
@@ -100,10 +103,10 @@ if __name__ == '__main__':
     LOSS = LOSS_DICT[LOSS_NAME]
     
     if args.backbone_name.find("IR") >= 0:
-        backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
+        backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) 
         _, head_paras_wo_bn = separate_irse_bn_paras(HEAD)
     else:
-        backbone_paras_only_bn, backbone_paras_wo_bn = separate_resnet_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
+        backbone_paras_only_bn, backbone_paras_wo_bn = separate_resnet_bn_paras(BACKBONE) 
         _, head_paras_wo_bn = separate_resnet_bn_paras(HEAD)
     OPTIMIZER = optim.SGD([{'params': backbone_paras_wo_bn + head_paras_wo_bn, 
                             'weight_decay': args.weight_decay}, 
@@ -137,7 +140,7 @@ if __name__ == '__main__':
     #======= train & validation & save checkpoint =======#
     DISP_FREQ = 1                      # frequency to display training loss & acc
     NUM_EPOCH_WARM_UP = args.num_epoch // 25  # use the first 1/25 epochs to warm up
-    NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  # use the first 1/25 epochs to warm up
+    NUM_BATCH_WARM_UP = len(train_loader) * NUM_EPOCH_WARM_UP  
     batch = 0  # batch index
     elasped = 0.0
     for epoch in range(args.num_epoch): # start training process
@@ -155,7 +158,7 @@ if __name__ == '__main__':
         # for inputs, labels in tqdm(iter(train_loader)):
         for inputs, labels in iter(train_loader):
             start = time.time()
-            if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR during warm up
+            if (epoch + 1 <= NUM_EPOCH_WARM_UP) and (batch + 1 <= NUM_BATCH_WARM_UP):  # adjust LR warm up
                 warm_up_lr(batch + 1, NUM_BATCH_WARM_UP, args.lr, OPTIMIZER)
             # compute output
             inputs = inputs.to(DEVICE)
@@ -163,9 +166,9 @@ if __name__ == '__main__':
             features = BACKBONE(inputs)
             outputs = HEAD(features, labels)
             ##save img samples##################
-            bFeature = F.normalize(outputs).detach()
-            saveBatch(inputs.cpu().numpy(), labels.cpu().numpy(), \
-                bFeature.cpu().numpy(), show_x=10, batchIdx=batch)
+            # bFeature = F.normalize(outputs).detach()
+            # showBatch(inputs.cpu().numpy(), labels.cpu().numpy(), \
+            #     bFeature.cpu().numpy(), show_x=10)
             #####################
             loss = LOSS(outputs, labels)
             print('loss:',loss.cpu().detach().numpy())
