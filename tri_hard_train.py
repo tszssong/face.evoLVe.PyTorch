@@ -13,6 +13,7 @@ from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from backbone.model_m2 import MobileV2
+from backbone.model_resa import RA_92
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data,get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
@@ -95,18 +96,13 @@ if __name__ == '__main__':
 
     #cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
-
+   
     train_transform = transforms.Compose([ #transforms.Resize([128, 128]),     # smaller side resized
                                            #transforms.RandomCrop(INPUT_SIZE),
                                            transforms.RandomHorizontalFlip(),
                                            transforms.ToTensor(),
                                            transforms.Normalize(mean =  [0.5, 0.5, 0.5], std =  [0.5, 0.5, 0.5]), ])
-    # dataset_train = ImageListLMDB(args.data_root + '/train.lmdb', transform=train_transform)
-    # dataset_train = ImageFolderLMDB(args.data_root + '/train.lmdb', transform=train_transform)
-    # train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
-    #              shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
-
+   
     dataset_train = TripletHardImgData( os.path.join(args.data_root, 'jrjacasia_imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
@@ -145,12 +141,7 @@ if __name__ == '__main__':
             nCount += iCount
             if (len(bagList)<batchSize*800 and bagIdx>400):
                 continue
-            #bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
-            #while(len(bagList)<batchSize*800 and bagIdx>400):
-            #    iBag, iCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE)
-            #    bagList += iBag
-            #    nCount += iCount
-           
+            
             print("bag:",bagSize , len(bagList), nCount) 
             BACKBONE.train()  # set to training mode
             losses = AverageMeter()
@@ -192,7 +183,6 @@ if __name__ == '__main__':
             
             print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
                   " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
-            # print("loss=%.4f, acc=%.4f"%(loss, prec))
             print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
             print("=" * 60)
