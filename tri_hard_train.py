@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
     #              shuffle=True,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
 
-    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'jajrcasia_imgs.lst'), \
+    dataset_train = TripletHardImgData( os.path.join(args.data_root, 'jrjacasia_imgs.lst'), \
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
@@ -119,8 +119,10 @@ if __name__ == '__main__':
     bagIdx = 0
 
     for epoch in range(args.num_epoch): # start training process
-        # if epoch > 0:
-        dataset_train.reset()
+        if epoch > 0:
+            dataset_train.reset()
+        bagList = []
+        nCount = 0
         for inputs, labels in iter(train_loader):  #bag_data
             bagIdx += 1
             for l_idx in range(len(lrStages)):
@@ -138,11 +140,16 @@ if __name__ == '__main__':
            
             baglabel_1v = labels.view(labels.shape[0]).numpy().astype(np.int64)  #longTensor=int64
             
-            bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
-            while(len(bagList)<batchSize*800 and bagIdx>400):
-                iBag, iCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE)
-                bagList += iBag
-                nCount += iCount
+            iBag, iCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE)
+            bagList += iBag
+            nCount += iCount
+            if (len(bagList)<batchSize*800 and bagIdx>400):
+                continue
+            #bagList, nCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE) # torch tensor
+            #while(len(bagList)<batchSize*800 and bagIdx>400):
+            #    iBag, iCount = select_triplets(features, baglabel_1v, bagSize, 10, device=DEVICE)
+            #    bagList += iBag
+            #    nCount += iCount
            
             print("bag:",bagSize , len(bagList), nCount) 
             BACKBONE.train()  # set to training mode
@@ -177,6 +184,9 @@ if __name__ == '__main__':
                     print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
                     sys.stdout.flush()
+            bagList = []
+            nCount = 0
+ 
             bag_loss = losses.avg
             bag_acc = acc.avg
             
@@ -195,7 +205,7 @@ if __name__ == '__main__':
                 print("=" * 60)
                 sys.stdout.flush() 
 
-            if (bagIdx%args.save_freq==0 and bagIdx!=0):
+            if (batch%args.save_freq==0 and bagIdx!=0):
                 print("Save Checkpoints Batch %d..."%batch)
                 if MULTI_GPU:
                     torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, \
