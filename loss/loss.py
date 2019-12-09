@@ -50,3 +50,39 @@ class TripletLoss(nn.Module):
         losses = F.relu(distances)
         return losses.mean(), losses 
 
+
+class TriKDLoss(nn.Module):
+    def __init__(self, margin=0.2, alpha = 1):
+        super(TriKDLoss, self).__init__()
+        self.l2 = nn.MSELoss()
+        self.margin = margin
+        self.alpha = 1.0
+
+    def forward( self, input, target, teacher_feat, show_loss = False, \
+                 device="cpu", alpha = 1.0, m=0):
+        _batchsize = input.size(0)
+        assert _batchsize==target.size(0) 
+
+        l2_loss = self.l2(input, teacher_feat)
+
+        input = F.normalize(input)
+        ind_list = [idx*3 for idx in range( int(_batchsize/3) )]
+        indices = torch.LongTensor(ind_list).to(device)
+        anchor   = torch.index_select(input, 0, indices)
+        indices = indices + 1
+        positive = torch.index_select(input, 0, indices)
+        indices = indices + 1
+        negative = torch.index_select(input, 0, indices)
+        
+        distance_positive = (anchor - positive).pow(2).sum(1)
+        distance_negative = (anchor - negative).pow(2).sum(1)
+        if(m==0):
+            distances = distance_positive - distance_negative + self.margin
+        else:
+            distances = distance_positive - distance_negative + m
+        losses = F.relu(distances)
+        tri_loss = losses.mean()
+        if show_loss:
+            print("tri:%.5f, l2:%.5f"%(tri_loss, l2_loss))
+        kdloss = tri_loss + l2_loss*alpha
+        return kdloss, losses 
