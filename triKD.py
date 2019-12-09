@@ -69,10 +69,10 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     BACKBONE = eval(args.backbone_name)(INPUT_SIZE)
     if args.backbone_name.find("IR") >= 0:
-        backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
+        backbone_paras_only_bn, backbone_paras_wo_bn = separate_irse_bn_paras(BACKBONE) 
     else:
-        backbone_paras_only_bn, backbone_paras_wo_bn = separate_resnet_bn_paras(BACKBONE) # separate batch_norm parameters from others; do not do weight decay for batch_norm parameters to improve the generalizability
-     # optionally resume from a checkpoint
+        backbone_paras_only_bn, backbone_paras_wo_bn = separate_resnet_bn_paras(BACKBONE) 
+
     if args.backbone_resume_root and os.path.isfile(args.backbone_resume_root):
         print("Loading Backbone Checkpoint '{}'".format(args.backbone_resume_root))
         BACKBONE.load_state_dict(torch.load(args.backbone_resume_root,map_location=DEVICE)) 
@@ -102,7 +102,6 @@ if __name__ == '__main__':
 
     #cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
     jaivs, jaivs_issame = get_val_pair(args.data_root,'ja_ivs.pkl')
-    # ww1, ww1_issame = get_val_pair(args.data_root,'gl2ms1mdl23f1ww1.pkl')
 
     train_transform = transforms.Compose([ #transforms.Resize([128, 128]),     # smaller side resized
                                            #transforms.RandomCrop(INPUT_SIZE),
@@ -114,8 +113,6 @@ if __name__ == '__main__':
                                  input_size = INPUT_SIZE, transform=train_transform)
     train_loader = torch.utils.data.DataLoader( dataset_train, batch_size = args.bag_size, \
                  shuffle=False,  pin_memory = True, num_workers = args.num_workers, drop_last = True )
-    # print("Number of Training Samples: {}".format(len(train_loader.dataset.samples)))
-    sys.stdout.flush()  
     
     print(bagSize, batchSize)
     batch = 0   # batch index
@@ -124,6 +121,8 @@ if __name__ == '__main__':
     for epoch in range(args.num_epoch): # start training process
         # if epoch > 0:
         dataset_train.reset()
+        bagList = [] 
+        nCount = 0
         for inputs, labels in iter(train_loader):  #bag_data
             bagIdx += 1
             for l_idx in range(len(lrStages)):
@@ -182,6 +181,8 @@ if __name__ == '__main__':
                     print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
                     sys.stdout.flush()
+            bagList = []
+            nCount = 0
             bag_loss = losses.avg
             bag_acc = acc.avg
             
@@ -200,7 +201,7 @@ if __name__ == '__main__':
                 print("=" * 60)
                 sys.stdout.flush() 
 
-            if (bagIdx%args.save_freq==0 and bagIdx!=0):
+            if (batch%args.save_freq==0 and bagIdx!=0):
                 print("Save Checkpoints Batch %d..."%batch)
                 if MULTI_GPU:
                     torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, \
