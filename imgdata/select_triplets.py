@@ -13,7 +13,7 @@ def get_num_per_id(labels):
             label_dict[id] = 1
     return label_dict
 
-def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5,device="cpu"):
+def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10, margin = 0.5, device="cpu"):
     mmTimes = 0.0
     copyTimes = 0.0
     t1 = time.time()
@@ -65,12 +65,11 @@ def select_triplets(features, baglabel_1v, bagSize, id_per_batch=10,margin = 0.5
             if (tmp > 1):
                 continue 
             p_idx = a_idx + idx
-            # if (np.random.randint(1,num_id))
+           
             p_dist = dist.numpy()[0][p_idx]
             if(p_dist>1.3):
                 continue
             thresh = p_dist + margin
-            #n_candidates = n_candidates.reshape(n_candidates.shape[1])
             n_candidates = np.where( np.logical_and( n_dists<thresh, n_dists>p_dist ) )[0]
             
             if n_candidates.shape[0] < 1:
