@@ -83,6 +83,6 @@ class TriKDLoss(nn.Module):
         losses = F.relu(distances)
         tri_loss = losses.mean()
         if show_loss:
-            print("tri:%.5f, l2:%.5f"%(tri_loss, l2_loss))
+            print("tri:%.5f, l2:%.5f"%(tri_loss, l2_loss), end=' ')
         kdloss = tri_loss + l2_loss*alpha
         return kdloss, losses 
