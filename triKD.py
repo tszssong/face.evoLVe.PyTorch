@@ -173,11 +173,11 @@ if __name__ == '__main__':
                 OPTIMIZER.zero_grad()
                 loss.backward()
                 OPTIMIZER.step()
-                batch += 1 # batch index
                 if batch % args.show_freq == 0:
                     print('b: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
                     sys.stdout.flush()
+                batch += 1 # batch index
             bagList = []
             nCount = 0
             bag_loss = losses.avg
