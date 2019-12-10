@@ -45,8 +45,9 @@ if __name__ == '__main__':
     parser.add_argument('--num-epoch', type=int, default=1000)
     parser.add_argument('--num-workers', type=int, default=6)
     parser.add_argument('--gpu-ids', type=str, default='0')
-    parser.add_argument('--save-freq', type=int, default=20)
+    parser.add_argument('--save-freq', type=int, default=2000)
     parser.add_argument('--test-freq', type=int, default=400)
+    parser.add_argument('--show-freq', type=int, default=20)
     args = parser.parse_args()
    
     margin = args.margin
@@ -171,9 +172,19 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
-                if batch % 5 == 0:
+                if batch % args.show_freq == 0:
                     print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
+                if (batch%args.save_freq==0 and bagIdx!=0):
+                    print("Save Checkpoints Batch %d..."%batch)
+                    if MULTI_GPU:
+                        torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, \
+                              "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \
+                              .format(args.backbone_name, epoch + 1, batch, get_time())))
+                    else:
+                        torch.save(BACKBONE.state_dict(), os.path.join(args.model_root,        \
+                              "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \
+                              .format(args.backbone_name, epoch + 1, batch, get_time())))
                     sys.stdout.flush()
             bagList = []
             nCount = 0
@@ -195,14 +206,4 @@ if __name__ == '__main__':
                 print("=" * 60)
                 sys.stdout.flush() 
 
-            if (batch%args.save_freq==0 and bagIdx!=0):
-                print("Save Checkpoints Batch %d..."%batch)
-                if MULTI_GPU:
-                    torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, \
-                              "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \
-                              .format(args.backbone_name, epoch + 1, batch, get_time())))
-                else:
-                    torch.save(BACKBONE.state_dict(), os.path.join(args.model_root,        \
-                              "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \
-                              .format(args.backbone_name, epoch + 1, batch, get_time())))
        
