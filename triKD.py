@@ -48,6 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--save-freq', type=int, default=20)
     parser.add_argument('--test-freq', type=int, default=400)
+    parser.add_argument('--show-freq', type=int, default=20)
     args = parser.parse_args()
    
     alpha = args.alpha
@@ -159,13 +160,9 @@ if __name__ == '__main__':
                
                 outputs = BACKBONE(bIn)
                 tFeats = TEACHER(bIn)
-                if batch % 100 == 0:
-                    bFeature = F.normalize(outputs).detach()
-                    saveBatch(bIn.cpu().numpy(), bLabel.cpu().numpy(), \
-                        bFeature.cpu().numpy(), show_x=10, batchIdx=batch)
 
                 loss, loss_batch = LOSS( outputs, bLabel, tFeats, \
-                                         batch%5==0, DEVICE, alpha, margin)
+                                         batch%args.show_freq==0, DEVICE, alpha, margin)
                 loss_batch = loss_batch.detach().cpu().numpy()
                 n_err = np.where(loss_batch!=0)[0].shape[0] 
                 prec = 1.0 - float(n_err) / loss_batch.shape[0]
@@ -177,8 +174,8 @@ if __name__ == '__main__':
                 loss.backward()
                 OPTIMIZER.step()
                 batch += 1 # batch index
-                if batch % 20 == 0:
-                    print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                if batch % args.show_freq == 0:
+                    print('b: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
                     sys.stdout.flush()
             bagList = []
