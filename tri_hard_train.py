@@ -173,7 +173,7 @@ if __name__ == '__main__':
                 OPTIMIZER.step()
                 batch += 1 # batch index
                 if batch % args.show_freq == 0:
-                    print('batch: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                    print('b: {}\t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                     'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(batch, loss=losses, acc=acc))
                 if (batch%args.save_freq==0 and bagIdx!=0):
                     print("Save Checkpoints Batch %d..."%batch)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
                         torch.save(BACKBONE.state_dict(), os.path.join(args.model_root,        \
                               "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth"       \
                               .format(args.backbone_name, epoch + 1, batch, get_time())))
-                    sys.stdout.flush()
+                sys.stdout.flush()
             bagList = []
             nCount = 0
  
