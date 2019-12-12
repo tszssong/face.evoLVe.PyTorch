@@ -192,11 +192,11 @@ if __name__ == '__main__':
             bag_loss = losses.avg
             bag_acc = acc.avg
             
-            print( time.strftime("%Y-%m-%d %H:%M:%S\t", time.localtime()), \
-                  " Bag:%d Batch:%d\t"%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
-            print('Epoch: {}/{} \t' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+            print( time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime()), \
+                  " Bag:%d Batch:%d "%(bagIdx, batch), "%.3f s/bag"%(time.time()-start))
+            print('Epoch: {}/{} ' 'Loss {loss.val:.4f} ({loss.avg:.4f}) '
                   'Prec {acc.val:.3f} ({acc.avg:.3f})'.format(epoch+1, args.num_epoch, loss=losses, acc=acc))
-            print("=" * 60)
+            print("=" * 50)
             sys.stdout.flush() 
 
             if (bagIdx%args.test_freq==0 and bagIdx!=0):
