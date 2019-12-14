@@ -13,8 +13,9 @@ import torchvision
 from torchvision import transforms
 sys.path.append( os.path.join( os.path.dirname(__file__),'../backbone/') )
 from model_resnet import ResNet_50, ResNet_101, ResNet_152
-from model_irse import IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
-
+from model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
+from model_m2 import MobileV2
+from model_resa import RA_92
 
 def alignedImg2feature(img_root, save_root, model, device="cpu", suffix='.ft', start=1015000, end=1015099):
     sp_savepath = save_root + '/spots/' 
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     backbone_load_path = args.backbone_resume_root
     if backbone_load_path and os.path.isfile(backbone_load_path):
         print("Loading Backbone Checkpoint '{}'".format(backbone_load_path))
-        BACKBONE.load_state_dict(torch.load(backbone_load_path)) 
+        BACKBONE.load_state_dict(torch.load(backbone_load_path, map_location='cuda:'+args.gpu_ids)) 
     else:
         print("No Checkpoint Error!" )
     test_transform = transforms.Compose([ transforms.ToTensor(), 
