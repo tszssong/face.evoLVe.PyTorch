@@ -20,49 +20,6 @@ import nvidia.dali.ops as dali_ops
 import nvidia.dali.types as dali_types
 from nvidia.dali.plugin.pytorch import DALIGenericIterator
 from imgdata.dali_img_iter import reader_pipeline
-# class reader_pipeline(Pipeline):
-#     def __init__(self, image_dir, batch_size, num_threads, device_id):
-#         super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
-#         self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = True)
-#         self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
-#         self.cmn_img = dali_ops.CropMirrorNormalize(device = "gpu",
-#                                            crop=(112, 112),  crop_pos_x=0, crop_pos_y=0,
-#                                            output_dtype = dali_types.FLOAT, image_type=dali_types.RGB,
-#                                            mean=[0.5*255, 0.5*255, 0.5*255],
-#                                            std=[0.5*255, 0.5*255, 0.5*255]
-#                                            )
-#         self.brightness_change = dali_ops.Uniform(range=(0.6,1.4))
-#         self.rd_bright = dali_ops.Brightness(device="gpu")
-#         self.contrast_change = dali_ops.Uniform(range=(0.6,1.4))
-#         self.rd_contrast = dali_ops.Contrast(device = "gpu")
-#         self.saturation_change = dali_ops.Uniform(range=(0.6,1.4))
-#         self.rd_saturation = dali_ops.Saturation(device = "gpu")
-#         self.jitter_change = dali_ops.Uniform(range=(1,2))
-#         self.rd_jitter = dali_ops.Jitter(device = "gpu")
-#         self.jitter_mask = dali_ops.CoinFlip(probability = 0.3)
-#         self.hue_change = dali_ops.Uniform(range = (-30,30))
-#         self.hue = dali_ops.Hue(device = "gpu")
-#         self.p_hflip = dali_ops.CoinFlip(probability = 0.5)
-#         self.flip = dali_ops.Flip(device = "gpu")
-
-#     def define_graph(self):
-#         jpegs, labels = self.input(name="Reader")
-#         images = self.decode(jpegs)
-#         brightness = self.brightness_change()
-#         images = self.rd_bright(images, brightness=brightness)
-#         contrast = self.contrast_change()
-#         images = self.rd_contrast(images, contrast = contrast)
-#         saturation = self.saturation_change()
-#         images = self.rd_saturation(images, saturation = saturation)
-#         jitter = self.jitter_change()
-#         jitter_mask = self.jitter_mask()
-#         images = self.rd_jitter(images, mask = jitter_mask)
-#         hue = self.hue_change()
-#         images = self.hue(images, hue = hue)
-#         p_hflip = self.p_hflip()
-#         images = self.flip(images, horizontal = p_hflip)
-#         imgs = self.cmn_img(images)
-#         return (imgs, labels)
 
 if __name__ == '__main__':
 
@@ -87,6 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-workers', type=int, default=1)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--disp-freq', type=int, default=1)
+    parser.add_argument('--save-freq', type=int, default=2000)
     parser.add_argument('--num-classes', type=int, default=143474)
     args = parser.parse_args()
 
@@ -217,7 +175,14 @@ if __name__ == '__main__':
                       'Training Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                     epoch + 1, args.num_epoch, batch + 1, loss = losses, top1 = top1, top5 = top5))
                 print("=" * 60)
-                sys.stdout.flush()
+            if batch % args.save_freq == 0:
+                if MULTI_GPU: 
+                    torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
+                    torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))
+                else:
+                    torch.save(BACKBONE.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
+                    torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))
+            sys.stdout.flush()
 
         # training statistics per epoch (buffer for visualization)
         epoch_loss = losses.avg
@@ -231,9 +196,3 @@ if __name__ == '__main__':
         print("=" * 60)
         sys.stdout.flush() 
 
-        if MULTI_GPU:
-            torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
-            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))
-        else:
-            torch.save(BACKBONE.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
-            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))
