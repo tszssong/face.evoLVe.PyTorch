@@ -10,7 +10,7 @@ from config import configurations
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from backbone.model_resa import RA_92
-from backbone.model_m2 import MobileV2
+from backbone.model_m2r import MobileV2
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
@@ -106,14 +106,14 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_dir = os.path.join(args.data_root, 'data_100')
+    train_dir = os.path.join(args.data_root, 'imgs')
     train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
                                        auto_reset=True)
     NUM_CLASS = args.num_classes
-    NUM_CLASS = 100
+    #NUM_CLASS = 100
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
     lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
     cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
@@ -194,7 +194,6 @@ if __name__ == '__main__':
             features = BACKBONE(inputs)
             outputs = HEAD(features, labels)
             loss = LOSS(outputs, labels)
-            print('loss:',loss.cpu().detach().numpy())
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, labels, topk = (1, 5))
             losses.update(loss.data.item(), inputs.size(0))
@@ -207,6 +206,7 @@ if __name__ == '__main__':
             end = time.time()
             elasped = elasped + (end - start)
             # dispaly training loss & acc every DISP_FREQ
+            batch += 1 # batch index
             if ((batch + 1) % DISP_FREQ == 0) and batch != 0:
                 #print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(end-start) )
                 print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "%.3f/batch"%((end-start)) )
@@ -218,7 +218,6 @@ if __name__ == '__main__':
                     epoch + 1, args.num_epoch, batch + 1, loss = losses, top1 = top1, top5 = top5))
                 print("=" * 60)
                 sys.stdout.flush()
-            batch += 1 # batch index
 
         # training statistics per epoch (buffer for visualization)
         epoch_loss = losses.avg
@@ -232,20 +231,9 @@ if __name__ == '__main__':
         print("=" * 60)
         sys.stdout.flush() 
 
-        # perform validation & save checkpoints per epoch
-        # # validation statistics per epoch (buffer for visualization)
-        # print("=" * 60)
-        # print("Perform Evaluation on LFW, CFP_FF, CFP_FP, AgeDB, CALFW, CPLFW and VGG2_FP, and Save Checkpoints...")
-        # accuracy_lfw, best_threshold_lfw = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, lfw, lfw_issame)
-        # accuracy_cfp_fp, best_threshold_cfp_fp = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, cfp_fp, cfp_fp_issame)
-        # accuracy_agedb, best_threshold_agedb = perform_val(MULTI_GPU, DEVICE, args.emb_size, args.batch_size, BACKBONE, agedb, agedb_issame)
-        # print("Epoch {}/{}, Evaluation: LFW Acc: {}, CFP_FP Acc: {}, AgeDB Acc: {}".format(epoch + 1, args.num_epoch, accuracy_lfw, accuracy_cfp_fp, accuracy_agedb))
-        # print("=" * 60)
-        # sys.stdout.flush() 
-        # save checkpoints per epoch
         if MULTI_GPU:
-            torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
-            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "Head_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.head_name, epoch + 1, batch, get_time())))
+            torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
+            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))
         else:
-            torch.save(BACKBONE.state_dict(), os.path.join(args.model_root, "Backbone_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
-            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "Head_{}_Epoch_{}_Batch_{}_Time_{}_checkpoint.pth".format(args.head_name, epoch + 1, batch, get_time())))
+            torch.save(BACKBONE.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))
+            torch.save(HEAD.state_dict(), os.path.join(args.model_root, "H_{}_E_{}_B_{}_{}.pth".format(args.head_name, epoch + 1, batch, get_time())))

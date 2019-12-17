@@ -1,6 +1,13 @@
-python myTrain.py --data-root /data02/zhengmeisong/data/tmp/gl2ms1m_img/ \
-       --head-name Combine \
-       --loss-name Softmax \
-       --batch-size 256 --num-epoch 30 \
-       --lr 0.1 --lr-stages 9,15,20,24 \
-       --gpu-ids 3 2>&1 | tee ../py-log/m2_combine_`date +'%m_%d-%H_%M'`.log 
+export OMP_NUM_THREADS=4
+MODEL=MobileV2
+mkdir ../py-model/${MODEL}/ 
+python myTrainDali.py  --backbone-name $MODEL --data-root /data_luoqi/zhengmeisong/data/glintv112/ \
+  --emb-size 512 \
+  --backbone-name $MODEL \
+  --batch-size 240 \
+  --lr 0.01 --lr-stages 4,8,12,16,18 --num-epoch 24 \
+  --loss-name Focal --head-name ArcFace \
+  --model-root ../py-model/${MODEL}/ \
+  --num-classes 144437 \
+  --gpu-ids 0 2>&1 | tee ../py-log/${MODEL}_`date +'%m_%d-%H_%M'`.log
+

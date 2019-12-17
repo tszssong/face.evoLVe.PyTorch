@@ -23,19 +23,20 @@ class reader_pipeline(Pipeline):
                                            mean=[0.5*255, 0.5*255, 0.5*255],
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
-        self.brightness_change = dali_ops.Uniform(range=(0.6,1.4))
+        self.brightness_change = dali_ops.Uniform(range=(0.9,1.1))
         self.rd_bright = dali_ops.Brightness(device="gpu")
-        self.contrast_change = dali_ops.Uniform(range=(0.6,1.4))
+        self.contrast_change = dali_ops.Uniform(range=(0.9,1.1))
         self.rd_contrast = dali_ops.Contrast(device = "gpu")
-        self.saturation_change = dali_ops.Uniform(range=(0.6,1.4))
+        self.saturation_change = dali_ops.Uniform(range=(0.9,1.1))
         self.rd_saturation = dali_ops.Saturation(device = "gpu")
         self.jitter_change = dali_ops.Uniform(range=(1,2))
         self.rd_jitter = dali_ops.Jitter(device = "gpu")
-        self.jitter_mask = dali_ops.CoinFlip(probability = 0.3)
-        self.hue_change = dali_ops.Uniform(range = (-30,30))
+        self.jitter_mask = dali_ops.CoinFlip(probability = 0.1)
+        self.hue_change = dali_ops.Uniform(range = (-10,10))
         self.hue = dali_ops.Hue(device = "gpu")
         self.p_hflip = dali_ops.CoinFlip(probability = 0.5)
         self.flip = dali_ops.Flip(device = "gpu")
+        print(self.brightness_change)
 
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
