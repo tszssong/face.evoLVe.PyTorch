@@ -5,7 +5,7 @@ dali 参考[官方](https://docs.nvidia.com/deeplearning/sdk/dali-developer-guid
 其他pip install 安装  
 #### 执行  
 sh m2.sh  只要机器能访问/ai_data/应该可以直接跑，MobilenetV2训练  
-提供log文件backup/MobileV2_03_12-16_29.log 以供参考  
+提供[log文件](backup/MobileV2_03_12-16_29.log) 以供参考  
 - 训练自己的数据：  
 --data-root 改成自己的路径，--num-classes 改成自己路径下的类别数  
 要注意的地方：  
