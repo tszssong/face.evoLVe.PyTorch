@@ -10,6 +10,8 @@ sh m2.sh  只要机器能访问/ai_data/应该可以直接跑，MobilenetV2训�
 --data-root 改成自己的路径，--num-classes 改成自己路径下的类别数  
 要注意的地方：  
 1. 默认路径名字是data_100,存放方式如下，可以修改myTrainDali.py第67行改为自己的路径
+   train_dir = os.path.join(args.data_root, 'data_100') #change data_100 to yourself subdir  
+
 data_100  
 |-class00  
 |-class01  
