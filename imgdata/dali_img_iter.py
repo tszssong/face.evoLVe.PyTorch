@@ -13,16 +13,20 @@ import nvidia.dali.types as dali_types
 from nvidia.dali.plugin.pytorch import DALIGenericIterator
 
 class reader_pipeline(Pipeline):
-    def __init__(self, image_dir, batch_size, num_threads, device_id):
+    def __init__(self, image_dir, image_size, batch_size, num_threads, device_id):
         super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
+        self.x_change = dali_ops.Uniform(range=(int(image_size[0]*1.2),int(image_size[0]*1.3)))
+        self.y_change = dali_ops.Uniform(range=(int(image_size[0]*1.2),int(image_size[0]*1.3)))
         self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = True)
         self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
+        self.crop_pos_change = dali_ops.Uniform(range=(0.0,1.0)) 
         self.cmn_img = dali_ops.CropMirrorNormalize(device = "gpu",
-                                           crop=(112, 112),  crop_pos_x=0, crop_pos_y=0,
+                                           crop=(image_size[0], image_size[1]),
                                            output_dtype = dali_types.FLOAT, image_type=dali_types.RGB,
                                            mean=[0.5*255, 0.5*255, 0.5*255],
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
+        self.resize = dali_ops.Resize(device="gpu")
         self.brightness_change = dali_ops.Uniform(range=(0.9,1.1))
         self.rd_bright = dali_ops.Brightness(device="gpu")
         self.contrast_change = dali_ops.Uniform(range=(0.9,1.1))
@@ -41,6 +45,9 @@ class reader_pipeline(Pipeline):
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
         images = self.decode(jpegs)
+        x_change = self.x_change()   
+        y_change = self.y_change() 
+        images = self.resize(images, resize_x = x_change, resize_y = y_change)  
         brightness = self.brightness_change()
         images = self.rd_bright(images, brightness=brightness)
         contrast = self.contrast_change()
@@ -54,13 +61,15 @@ class reader_pipeline(Pipeline):
         images = self.hue(images, hue = hue)
         p_hflip = self.p_hflip()
         images = self.flip(images, horizontal = p_hflip)
-        imgs = self.cmn_img(images)
+        xpos = self.crop_pos_change() 
+        ypos = self.crop_pos_change()  
+        imgs = self.cmn_img(images,crop_pos_x=xpos, crop_pos_y=ypos)
         return (imgs, labels)
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='/mnt/sdc/zhengmeisong/data/glintv2_emore_ms1m_img/')
+    parser.add_argument('--data-root', type=str, default='//ai_data/suiyifan/data/retail_product_checkout/')
     parser.add_argument('--input-size', type=str, default="112, 112")
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--num-epoch', type=int, default=25)
@@ -74,8 +83,8 @@ if __name__=='__main__':
     show_x = 6
     show_y = 3
 
-    train_dir = os.path.join(args.data_root, 'data_100')
-    train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
+    train_dir = os.path.join(args.data_root, 'corp_train')
+    train_pipes = reader_pipeline(train_dir, (112,112), args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
@@ -86,6 +95,8 @@ if __name__=='__main__':
     show_sample_img = np.zeros((show_y*INPUT_SIZE[1], show_x*INPUT_SIZE[0], 3), dtype=np.uint8)
     x=0
     y=0
+    if not os.path.isdir('./tmp'):
+      os.makedirs('./tmp')
     for epoch in range(10):
         print("epoch %d"%epoch)
         # for inputs, labels in iter(train_loader):

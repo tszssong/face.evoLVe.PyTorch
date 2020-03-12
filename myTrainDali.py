@@ -64,8 +64,8 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_dir = os.path.join(args.data_root, 'data_100') #change data_100 to yourself subdir
-    train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
+    train_dir = os.path.join(args.data_root, 'corp_train') #change data_100 to yourself subdir
+    train_pipes = reader_pipeline(train_dir, (INPUT_SIZE[0],INPUT_SIZE[1]), args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
