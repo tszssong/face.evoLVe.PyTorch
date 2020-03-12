@@ -64,18 +64,17 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_dir = os.path.join(args.data_root, 'imgs')
+    train_dir = os.path.join(args.data_root, 'data_100')
     train_pipes = reader_pipeline(train_dir, args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
                                        auto_reset=True)
     NUM_CLASS = args.num_classes
-    #NUM_CLASS = 100
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
-    lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
-    cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
-    agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
+    #lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
+    #cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
+    #agedb, agedb_issame = get_val_pair(args.data_root, 'agedb_30')
     BACKBONE = eval(args.backbone_name)(input_size = INPUT_SIZE, emb_size = args.emb_size)
     HEAD = eval(args.head_name)(in_features = args.emb_size, out_features = NUM_CLASS, device_id = GPU_ID)
    
