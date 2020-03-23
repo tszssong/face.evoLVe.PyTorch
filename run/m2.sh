@@ -10,5 +10,5 @@ python myTrainDali.py  --backbone-name $MODEL --data-root /ai_data/suiyifan/data
   --loss-name Focal --head-name ArcFace \
   --model-root ../py-model/${MODEL}/ \
   --num-classes 200 \
-  --gpu-ids 4 2>&1 | tee ../py-log/${MODEL}_`date +'%m_%d-%H_%M'`.log
+  --gpu-ids 5 2>&1 | tee ../py-log/${MODEL}_`date +'%m_%d-%H_%M'`.log
 

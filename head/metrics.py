@@ -109,8 +109,9 @@ class ArcFace(nn.Module):
             m: margin
             cos(theta+m)
         """
-    def __init__(self, in_features, out_features, device_id, s = 64.0, m = 0.50, easy_margin = False):
+    def __init__(self, in_features, out_features, device_id, s = 64.0, m = 0.30, easy_margin = False):
         super(ArcFace, self).__init__()
+        print("use margin:",m)
         self.in_features = in_features
         self.out_features = out_features
         self.device_id = device_id

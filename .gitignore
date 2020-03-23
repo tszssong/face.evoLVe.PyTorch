@@ -1,3 +1,4 @@
+small*.sh
 *.pth
 *.code-workspace.code-workspace
 *.idea

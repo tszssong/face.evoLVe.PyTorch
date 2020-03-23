@@ -15,8 +15,8 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator
 class reader_pipeline(Pipeline):
     def __init__(self, image_dir, image_size, batch_size, num_threads, device_id):
         super(reader_pipeline, self).__init__(batch_size, num_threads, device_id)
-        self.x_change = dali_ops.Uniform(range=(int(image_size[0]*1.2),int(image_size[0]*1.3)))
-        self.y_change = dali_ops.Uniform(range=(int(image_size[0]*1.2),int(image_size[0]*1.3)))
+        self.x_change = dali_ops.Uniform(range=(int(image_size[0]*1.0),int(image_size[0]*1.1)))
+        self.y_change = dali_ops.Uniform(range=(int(image_size[0]*1.0),int(image_size[0]*1.1)))
         self.input = dali_ops.FileReader(file_root = image_dir, random_shuffle = True)
         self.decode = dali_ops.ImageDecoder(device = 'mixed', output_type = dali_types.RGB)
         self.crop_pos_change = dali_ops.Uniform(range=(0.0,1.0)) 
@@ -26,21 +26,26 @@ class reader_pipeline(Pipeline):
                                            mean=[0.5*255, 0.5*255, 0.5*255],
                                            std=[0.5*255, 0.5*255, 0.5*255]
                                            )
+        l_bcs = 0.6
+        r_bcs = 1.4
+        hue = 40
+        print(l_bcs, r_bcs, hue)
         self.resize = dali_ops.Resize(device="gpu")
-        self.brightness_change = dali_ops.Uniform(range=(0.9,1.1))
+        self.brightness_change = dali_ops.Uniform(range=(l_bcs,r_bcs))
         self.rd_bright = dali_ops.Brightness(device="gpu")
-        self.contrast_change = dali_ops.Uniform(range=(0.9,1.1))
+        self.contrast_change = dali_ops.Uniform(range=(l_bcs,r_bcs))
         self.rd_contrast = dali_ops.Contrast(device = "gpu")
-        self.saturation_change = dali_ops.Uniform(range=(0.9,1.1))
+        self.saturation_change = dali_ops.Uniform(range=(l_bcs,r_bcs))
         self.rd_saturation = dali_ops.Saturation(device = "gpu")
         self.jitter_change = dali_ops.Uniform(range=(1,2))
         self.rd_jitter = dali_ops.Jitter(device = "gpu")
         self.jitter_mask = dali_ops.CoinFlip(probability = 0.1)
-        self.hue_change = dali_ops.Uniform(range = (-10,10))
+        self.hue_change = dali_ops.Uniform(range = (-hue,hue))
         self.hue = dali_ops.Hue(device = "gpu")
         self.p_hflip = dali_ops.CoinFlip(probability = 0.5)
         self.flip = dali_ops.Flip(device = "gpu")
-        print(self.brightness_change)
+        self.angle = dali_ops.Uniform(range=(-30,30))
+        self.rot = dali_ops.Rotate(device="gpu")
 
     def define_graph(self):
         jpegs, labels = self.input(name="Reader")
@@ -54,13 +59,15 @@ class reader_pipeline(Pipeline):
         images = self.rd_contrast(images, contrast = contrast)
         saturation = self.saturation_change()
         images = self.rd_saturation(images, saturation = saturation)
-        jitter = self.jitter_change()
-        jitter_mask = self.jitter_mask()
-        images = self.rd_jitter(images, mask = jitter_mask)
+        #jitter = self.jitter_change()
+        #jitter_mask = self.jitter_mask()
+        #images = self.rd_jitter(images, mask = jitter_mask)
         hue = self.hue_change()
         images = self.hue(images, hue = hue)
         p_hflip = self.p_hflip()
         images = self.flip(images, horizontal = p_hflip)
+        #angle = self.angle()
+        #images = self.rot(images, angle = angle)
         xpos = self.crop_pos_change() 
         ypos = self.crop_pos_change()  
         imgs = self.cmn_img(images,crop_pos_x=xpos, crop_pos_y=ypos)
@@ -69,8 +76,8 @@ class reader_pipeline(Pipeline):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', type=str, default='//ai_data/suiyifan/data/retail_product_checkout/')
-    parser.add_argument('--input-size', type=str, default="112, 112")
+    parser.add_argument('--data-root', type=str, default='/data3/zhengmeisong/data/msra-glintv-orig/')
+    parser.add_argument('--input-size', type=str, default="224,224")
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--num-epoch', type=int, default=25)
     parser.add_argument('--num-workers', type=int, default=1)
@@ -83,13 +90,12 @@ if __name__=='__main__':
     show_x = 6
     show_y = 3
 
-    train_dir = os.path.join(args.data_root, 'corp_train')
-    train_pipes = reader_pipeline(train_dir, (112,112), args.batch_size, args.num_workers, device_id = GPU_ID[0])
+    train_dir = os.path.join(args.data_root, 'data_100')
+    train_pipes = reader_pipeline(train_dir, (INPUT_SIZE[0],INPUT_SIZE[1]), args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
                                        auto_reset=True)
-    a = dali_ops.Uniform(range=(0.5,1.2))
     
     start = time.time()
     show_sample_img = np.zeros((show_y*INPUT_SIZE[1], show_x*INPUT_SIZE[0], 3), dtype=np.uint8)

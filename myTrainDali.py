@@ -5,12 +5,15 @@ import torch.optim as optim
 import torch.cuda
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-
+sys.path.append( os.path.join( os.path.dirname(__file__),'./backbone/') )
 from config import configurations
+from backbone.model_hrnet import hr40, hr64
+from backbone.model_hrnetSE import se_hr18, se_hr30, se_hr32, se_hr40, se_hr48, se_hr64
 from backbone.model_resnet import ResNet_50, ResNet_101, ResNet_152
 from backbone.model_irse import IR_18, IR_50, IR_101, IR_152, IR_SE_50, IR_SE_101, IR_SE_152
 from backbone.model_resa import RA_92
 from backbone.model_m2r import MobileV2
+from backbone.dpn import dpn107
 from head.metrics import ArcFace, CosFace, SphereFace, Am_softmax, Softmax,Combine
 from loss.loss import FocalLoss, TripletLoss
 from util.utils import make_weights_for_balanced_classes, get_val_data, get_val_pair, separate_irse_bn_paras, separate_resnet_bn_paras, warm_up_lr, schedule_lr, perform_val, get_time, buffer_val, AverageMeter, accuracy
@@ -27,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1337)
     parser.add_argument('--data-root', type=str, default='/cloud_data01/zhengmeisong/data/gl2ms1m_img/')
     parser.add_argument('--model-root', type=str, default='../py-model')
-    parser.add_argument('--backbone-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
+    parser.add_argument('--backbone-resume-root', type=str, default='./')
     parser.add_argument('--backbone-name', type=str, default='MobileV2') # support: ['ResNet_50', 'ResNet_101', 'ResNet_152', 'IR_50', 'IR_101', 'IR_152', 'IR_SE_50', 'IR_SE_101', 'IR_SE_152']
     parser.add_argument('--head-resume-root', type=str, default='./home/ubuntu/zms/models/ResNet_50_Epoch_33.pth')
     parser.add_argument('--head-name', type=str, default='Combine') # support: ['Combin', 'Softmax', 'ArcFace', 'CosFace']
@@ -44,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-workers', type=int, default=1)
     parser.add_argument('--gpu-ids', type=str, default='0')
     parser.add_argument('--disp-freq', type=int, default=1)
-    parser.add_argument('--save-freq', type=int, default=2000)
+    parser.add_argument('--save-freq', type=int, default=5000)
     parser.add_argument('--num-classes', type=int, default=143474)
     args = parser.parse_args()
 
@@ -64,13 +67,13 @@ if __name__ == '__main__':
     print("=" * 60, "\nOverall Configurations:\n", args)
     sys.stdout.flush()
 
-    train_dir = os.path.join(args.data_root, 'corp_train') #change data_100 to yourself subdir
+    NUM_CLASS = args.num_classes
+    train_dir = os.path.join(args.data_root, 'imgs') #change data_100 to yourself subdir
     train_pipes = reader_pipeline(train_dir, (INPUT_SIZE[0],INPUT_SIZE[1]), args.batch_size, args.num_workers, device_id = GPU_ID[0])
     train_pipes.build()
     train_loader = DALIGenericIterator(train_pipes, ['imgs', 'labels'],\
                                        train_pipes.epoch_size("Reader"), \
                                        auto_reset=True)
-    NUM_CLASS = args.num_classes
     # lfw, cfp_fp, agedb, lfw_issame, cfp_fp_issame, agedb_issame = get_val_data(DATA_ROOT)
     #lfw, lfw_issame = get_val_pair(args.data_root, 'lfw')
     #cfp_fp, cfp_fp_issame = get_val_pair(args.data_root, 'cfp_fp')
@@ -99,9 +102,22 @@ if __name__ == '__main__':
         print("=" * 60)
         if os.path.isfile(args.backbone_resume_root):
             print("Loading Backbone Checkpoint '{}'".format(args.backbone_resume_root))
-            BACKBONE.load_state_dict(torch.load(args.backbone_resume_root,map_location=DEVICE))
+            if 'efficient' in args.backbone_name:
+                model = EfficientNet.from_name(args.backbone_name, override_params={'num_classes':args.emb_size})
+            else:
+                model = eval(args.backbone_name)(input_size = INPUT_SIZE, emb_size=1000)
+            #pretrained_dict = torch.load(args.backbone_resume_root,map_location='cpu')
+            pretrained_dict = torch.load(args.backbone_resume_root,map_location=DEVICE)
+            model_dict = BACKBONE.state_dict()
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            model_dict.update(pretrained_dict)
+            BACKBONE.load_state_dict(model_dict)
+            # BACKBONE.load_state_dict(torch.load(args.backbone_resume_root,map_location=DEVICE))
         else:
             print("No Checkpoint Found at '{}'.".format(args.backbone_resume_root))
+        print("=" * 60)
+        sys.stdout.flush()
+
     if args.head_resume_root:   
         if os.path.isfile(args.head_resume_root):
             print("Loading Head Checkpoint '{}'".format(args.head_resume_root))
@@ -168,12 +184,11 @@ if __name__ == '__main__':
                 #print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "average:%.2f s/batch"%(end-start) )
                 print( time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "%.3f/batch"%((end-start)) )
                 elasped = 0
-                print('Epoch {}/{} Batch {}\t'
-                      'Training Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Training Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                      'Training Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                print('E {}/{} B {}\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                      'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                     epoch + 1, args.num_epoch, batch + 1, loss = losses, top1 = top1, top5 = top5))
-                print("=" * 60)
             if batch % args.save_freq == 0:
                 if MULTI_GPU: 
                     torch.save(BACKBONE.module.state_dict(), os.path.join(args.model_root, "B_{}_E_{}_B_{}_{}.pth".format(args.backbone_name, epoch + 1, batch, get_time())))

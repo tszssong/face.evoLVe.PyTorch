@@ -148,20 +148,18 @@ class Backbone(Module):
             unit_module = bottleneck_IR
         elif mode == 'ir_se':
             unit_module = bottleneck_IR_SE
-        self.input_layer = Sequential(Conv2d(3, 64, (3, 3), 1, 1, bias=False),
+        if input_size[0] == 112:
+            self.input_layer = Sequential(Conv2d(3, 64, (3, 3), 1, 1, bias=False),
                                       BatchNorm2d(64),
                                       PReLU(64))
-        if input_size[0] == 112:
-            self.output_layer = Sequential(BatchNorm2d(512),
+        else:
+            self.input_layer = Sequential(Conv2d(3, 64, (3, 3), 2, 1, bias=False),
+                                      BatchNorm2d(64),
+                                      PReLU(64))
+        self.output_layer = Sequential(BatchNorm2d(512),
                                            Dropout(),
                                            Flatten(),
                                            Linear(512 * 7 * 7, emb_size),
-                                           BatchNorm1d(emb_size))
-        else:
-            self.output_layer = Sequential(BatchNorm2d(512),
-                                           Dropout(),
-                                           Flatten(),
-                                           Linear(512 * 14 * 14, emb_size),
                                            BatchNorm1d(emb_size))
 
         modules = []
